@@ -1,4 +1,4 @@
-.env
 output/
 __pycache__/
 cvs/
+.env
