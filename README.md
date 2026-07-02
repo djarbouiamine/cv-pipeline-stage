@@ -19,6 +19,7 @@ Le projet s'articule autour des modules suivants :
 3. **`cv_saver.py`** : Exporte les données structurées extraites dans des fichiers JSON (`output/cvs_data.json`) et Excel (`output/cvs_data.xlsx`).
 4. **`cv_injector.py`** : Charge les données extraites et les indexe dans une base **Elasticsearch** locale pour permettre la recherche plein texte et filtrée.
 5. **`cv_comparator.py`** : Outil d'évaluation et d'étude comparative. Il exécute les différents LLMs gratuits sur les CVs pour évaluer leurs performances selon plusieurs métriques quantitatives et qualitatives.
+6. **`cv_agent.py`** : Pipeline à 2 étapes (extraction + agent de vérification). Il permet d'extraire rapidement les données (ex: avec Groq), puis d'utiliser un modèle de vérification (ex: Mistral ou Gemini) pour relire le CV et le JSON produit, afin de corriger spécifiquement la classification si nécessaire.
 
 ---
 
