@@ -5,43 +5,25 @@ import re
 import csv
 from datetime import datetime
 
-from google import genai
-from google.genai.errors import APIError
-import requests
-
-# ── Charger .env ──────────────────────────────────────────────
-if os.path.exists(".env"):
-    with open(".env", "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                try:
-                    key, val = line.split("=", 1)
-                    os.environ[key.strip()] = val.strip()
-                except Exception:
-                    pass
-
-gemini_key = os.environ.get("GEMINI_API_KEY")
-groq_key = os.environ.get("GROQ_API_KEY")
-openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-mistral_key = os.environ.get("MISTRAL_API_KEY")
-
-client_gemini = genai.Client(api_key=gemini_key) if gemini_key else None
-
-client_groq = None
-if groq_key:
-    try:
-        from groq import Groq
-        client_groq = Groq(api_key=groq_key)
-    except ImportError:
-        print("⚠️ SDK Groq non installé.")
+# ── Source unique : prompt, appels providers et scoring qualité viennent
+# tous de cv_extractor.py, pour comparer les providers sur EXACTEMENT
+# le même prompt / la même méthode de scoring que le pipeline réel. ──
+from cv_extractor import (
+    build_prompt,
+    _call_groq,
+    _call_gemini,
+    _call_mistral,
+    _call_openrouter,
+    calculate_quality_score,
+    AVAILABLE_KEYS,
+)
 
 # ── Champs attendus pour mesurer la complétude ────────────────
 EXPECTED_FIELDS = [
     "nom", "email", "telephone", "linkedin", "localisation",
     "scores_categories", "categorie_principale", "technologies",
     "langages", "frameworks", "bases_de_donnees", "outils_devops",
-    "projets", "description_projets", "diplomes", "certifications", "langues"
+    "projets", "evaluation_projets", "diplomes", "certifications", "langues"
 ]
 
 # ── Modèles à comparer (doublon Llama-OpenRouter retiré) ──────
@@ -53,125 +35,6 @@ CANDIDATES = [
     {"name": "Gemini 2.5 Flash-Lite",    "provider": "gemini",     "model": "gemini-2.5-flash-lite"},
     {"name": "Mistral Small (Mistral)",  "provider": "mistral",    "model": "mistral-small-latest"},
 ]
-
-
-def build_prompt(text):
-    return f"""
-Tu es un expert RH. Analyse ce CV et extrais les informations dans un JSON.
-Retourne UNIQUEMENT le JSON, rien d'autre.
-
-IMPORTANT : Le texte peut être mal formaté à cause de l'OCR.
-Corrige les erreurs évidentes.
-
-Pour la classification :
-- Identifie TOI-MÊME les 2 ou 3 domaines professionnels les plus pertinents
-  pour ce candidat (ne choisis pas dans une liste fixe, trouve les domaines
-  qui correspondent vraiment à son profil)
-- Donne un score de pertinence de 0 à 100 pour chaque domaine identifié
-- Indique le domaine principal (le plus haut score)
-
-Format attendu :
-{{
-    "nom": "...",
-    "email": "...",
-    "telephone": "...",
-    "linkedin": "...",
-    "localisation": "...",
-    "scores_categories": {{
-        "Domaine trouvé par l'IA 1": 0,
-        "Domaine trouvé par l'IA 2": 0
-    }},
-    "categorie_principale": "le domaine avec le score le plus élevé",
-    "technologies": ["...", "..."],
-    "langages": ["...", "..."],
-    "frameworks": ["...", "..."],
-    "bases_de_donnees": ["...", "..."],
-    "outils_devops": ["...", "..."],
-    "projets": ["...", "..."],
-    "description_projets": {{
-        "nom du projet 1": "description courte"
-    }},
-    "diplomes": ["...", "..."],
-    "certifications": ["...", "..."],
-    "langues": ["...", "..."]
-}}
-
-Voici le CV :
-{text}
-"""
-
-
-def _call_openrouter(prompt, model):
-    if not openrouter_key:
-        raise RuntimeError("OPENROUTER_API_KEY manquante")
-
-    headers = {
-        "Authorization": f"Bearer {openrouter_key}",
-        "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost",
-        "X-Title": "cv-pipeline-comparaison",
-    }
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "response_format": {"type": "json_object"},
-    }
-    resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers=headers, json=payload, timeout=60,
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"HTTP {resp.status_code} : {resp.text[:200]}")
-
-    content = resp.json()["choices"][0]["message"]["content"]
-    content = content.replace("```json", "").replace("```", "").strip()
-    return json.loads(content)
-
-
-def _call_gemini(prompt, model):
-    if not client_gemini:
-        raise RuntimeError("Client Gemini non configuré")
-    from google.genai import types
-    config = types.GenerateContentConfig(response_mime_type="application/json")
-    response = client_gemini.models.generate_content(model=model, contents=prompt, config=config)
-    result = response.text.strip().replace("```json", "").replace("```", "").strip()
-    return json.loads(result)
-
-
-def _call_groq(prompt, model):
-    if not client_groq:
-        raise RuntimeError("Client Groq non configuré")
-    completion = client_groq.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
-    )
-    return json.loads(completion.choices[0].message.content.strip())
-
-
-def _call_mistral(prompt, model):
-    if not mistral_key:
-        raise RuntimeError("MISTRAL_API_KEY manquante")
-
-    headers = {
-        "Authorization": f"Bearer {mistral_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "response_format": {"type": "json_object"},
-    }
-    resp = requests.post(
-        "https://api.mistral.ai/v1/chat/completions",
-        headers=headers, json=payload, timeout=60,
-    )
-    if resp.status_code != 200:
-        raise RuntimeError(f"HTTP {resp.status_code} : {resp.text[:200]}")
-
-    content = resp.json()["choices"][0]["message"]["content"]
-    content = content.replace("```json", "").replace("```", "").strip()
-    return json.loads(content)
 
 
 # ── Évaluation de la Justesse (Vérité terrain) ────────────────
@@ -315,6 +178,10 @@ def run_one_model(candidate, prompt, max_retries_503=2):
             result["latency_s"] = round(time.time() - start, 2)
             result["success"] = True
             result["completeness_pct"] = completeness_score(data)
+            try:
+                result["score_qualite_globale"] = calculate_quality_score(data)["score_qualite_globale"]
+            except Exception:
+                result["score_qualite_globale"] = None
             result["data"] = data
             return result
 
@@ -358,13 +225,7 @@ def compare_models_on_cvs(cvs, candidates_to_test=None, delay_between_calls=2.0)
         print(f"{'='*60}")
 
         for candidate in candidates_to_test:
-            if candidate["provider"] == "gemini" and not client_gemini:
-                continue
-            if candidate["provider"] == "groq" and not client_groq:
-                continue
-            if candidate["provider"] == "openrouter" and not openrouter_key:
-                continue
-            if candidate["provider"] == "mistral" and not mistral_key:
+            if not AVAILABLE_KEYS.get(candidate["provider"]):
                 continue
 
             print(f"   🤖 Test : {candidate['name']}... ", end="")
@@ -406,7 +267,8 @@ def summarize_results(all_results):
                 "err_parsing": 0,
                 "err_other": 0,
                 "justesse_scores": [],
-                "classification_pertinentes": []
+                "classification_pertinentes": [],
+                "quality_scores": []
             }
         s = summary[name]
         s["total"] += 1
@@ -418,6 +280,8 @@ def summarize_results(all_results):
                 s["justesse_scores"].append(r["justesse_extraction_pct"])
             if r.get("classification_pertinente") is not None:
                 s["classification_pertinentes"].append(r["classification_pertinente"])
+            if r.get("score_qualite_globale") is not None:
+                s["quality_scores"].append(r["score_qualite_globale"])
         else:
             err_type = r.get("error_type")
             if err_type == "quota":
@@ -440,6 +304,8 @@ def summarize_results(all_results):
         class_evals = s["classification_pertinentes"]
         avg_pertinence = round(sum(1.0 for v in class_evals if v) / len(class_evals) * 100, 1) if class_evals else None
 
+        avg_quality = round(sum(s["quality_scores"]) / len(s["quality_scores"]), 1) if s["quality_scores"] else None
+
         rows.append({
             "modele": name,
             "taux_succes_pct": success_rate,
@@ -451,6 +317,7 @@ def summarize_results(all_results):
             "erreur_autre": s["err_other"],
             "justesse_moyenne_pct": avg_justesse,
             "classification_pertinente_pct": avg_pertinence,
+            "qualite_moyenne": avg_quality,
             "nb_tests": s["total"],
         })
 
@@ -462,14 +329,15 @@ def print_summary_table(rows):
     print(f"\n{'='*125}")
     print("📊 TABLEAU COMPARATIF AMÉLIORÉ")
     print(f"{'='*125}")
-    print(f"{'Modèle':<28} {'Succès %':>9} {'Latence (s)':>12} {'Complétude %':>13} {'Justesse %':>11} {'Classif %':>10} {'Quota':>6} {'Timeout':>8} {'Parse':>6} {'Autre':>6} {'Tests':>6}")
+    print(f"{'Modèle':<28} {'Succès %':>9} {'Latence (s)':>12} {'Complétude %':>13} {'Justesse %':>11} {'Classif %':>10} {'Qualité':>8} {'Quota':>6} {'Timeout':>8} {'Parse':>6} {'Autre':>6} {'Tests':>6}")
     print("-" * 125)
     for row in rows:
         lat = row["latence_moyenne_s"] if row["latence_moyenne_s"] is not None else "-"
         comp = row["completude_moyenne_pct"] if row["completude_moyenne_pct"] is not None else "-"
         just = row["justesse_moyenne_pct"] if row["justesse_moyenne_pct"] is not None else "-"
         classif = row["classification_pertinente_pct"] if row["classification_pertinente_pct"] is not None else "-"
-        print(f"{row['modele']:<28} {row['taux_succes_pct']:>8}% {lat!s:>12} {comp!s:>12}% {just!s:>10}% {classif!s:>9}% {row['erreur_quota']:>6} {row['erreur_timeout']:>8} {row['erreur_parsing']:>6} {row['erreur_autre']:>6} {row['nb_tests']:>6}")
+        qual = row["qualite_moyenne"] if row["qualite_moyenne"] is not None else "-"
+        print(f"{row['modele']:<28} {row['taux_succes_pct']:>8}% {lat!s:>12} {comp!s:>12}% {just!s:>10}% {classif!s:>9}% {qual!s:>7} {row['erreur_quota']:>6} {row['erreur_timeout']:>8} {row['erreur_parsing']:>6} {row['erreur_autre']:>6} {row['nb_tests']:>6}")
 
 
 def save_reports(all_results, summary_rows, suffix="", output_dir="output"):
@@ -485,7 +353,7 @@ def save_reports(all_results, summary_rows, suffix="", output_dir="output"):
         writer = csv.DictWriter(f, fieldnames=[
             "modele", "taux_succes_pct", "latence_moyenne_s", "completude_moyenne_pct",
             "erreur_quota", "erreur_timeout", "erreur_parsing", "erreur_autre",
-            "justesse_moyenne_pct", "classification_pertinente_pct", "nb_tests"
+            "justesse_moyenne_pct", "classification_pertinente_pct", "qualite_moyenne", "nb_tests"
         ])
         writer.writeheader()
         writer.writerows(summary_rows)
@@ -506,13 +374,8 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    # Dictionnaire des clés pour valider leur existence
-    API_KEYS = {
-        "gemini": gemini_key,
-        "groq": groq_key,
-        "openrouter": openrouter_key,
-        "mistral": mistral_key
-    }
+    # AVAILABLE_KEYS (importé de cv_extractor) valide l'existence des clés
+    API_KEYS = AVAILABLE_KEYS
     
     known_providers = set(c["provider"] for c in CANDIDATES)
     known_models = set(c["model"] for c in CANDIDATES)
