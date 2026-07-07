@@ -1,49 +1,37 @@
-# Pipeline de Traitement et de Classification de CVs (CV Pipeline Stage)
+# Pipeline de Traitement et de Classification de CVs
 
-Ce projet est un pipeline complet d'extraction, de classification, de comparaison et d'indexation de CVs au format PDF. Il utilise des modèles de langage de grande taille (LLMs) gratuits pour transformer des CVs non structurés en données JSON structurées, les classifier thématiquement, et les injecter dans Elasticsearch.
+Ce projet est un pipeline complet d'**extraction**, de **classification**, de **comparaison** et de **sauvegarde** de CVs au format PDF. Il utilise des modèles de langage (LLMs) multi-fournisseurs pour transformer des CVs non structurés en données JSON structurées et les classifier thématiquement.
 
 ---
 
 ## 🛠️ Architecture du Projet
 
-Le projet s'articule autour des modules suivants :
+Le projet s'articule autour de **4 modules principaux** :
 
-1. **`cv_reader.py`** : Lit les fichiers PDF. Il applique trois stratégies successives :
-   - Extraction de texte brut (PyMuPDF).
-   - Extraction sur deux colonnes (pdfplumber) pour les CVs au design moderne.
-   - Reconnaissance Optique de Caractères (OCR via Tesseract) pour les PDF numérisés ou sous forme d'images.
-2. **`cv_extractor.py`** : Script principal d'extraction en production.
-   - Par défaut, il tente l'extraction avec **Groq** (Llama 3.3 70B) pour sa rapidité et sa fiabilité, et bascule automatiquement sur **OpenRouter** en cas d'échec (429/503).
-   - Un système de cache local évite de réanalyser un CV déjà traité.
-   - Supporte des arguments CLI (`--provider` et `--model`) pour forcer l'utilisation d'une IA précise.
-3. **`cv_saver.py`** : Exporte les données structurées extraites dans des fichiers JSON (`output/cvs_data.json`) et Excel (`output/cvs_data.xlsx`).
-4. **`cv_injector.py`** : Charge les données extraites et les indexe dans une base **Elasticsearch** locale pour permettre la recherche plein texte et filtrée.
-5. **`cv_comparator.py`** : Outil d'évaluation et d'étude comparative. Il exécute les différents LLMs gratuits sur les CVs pour évaluer leurs performances selon plusieurs métriques quantitatives et qualitatives.
-6. **`cv_agent.py`** : Pipeline à 2 étapes (extraction + agent de vérification). Il permet d'extraire rapidement les données (ex: avec Groq), puis d'utiliser un modèle de vérification (ex: Mistral ou Gemini) pour relire le CV et le JSON produit, afin de corriger spécifiquement la classification si nécessaire.
+| Module | Rôle |
+| :--- | :--- |
+| **`cv_reader.py`** | Lit les fichiers PDF avec 3 stratégies successives : extraction texte brut (PyMuPDF), extraction 2 colonnes (pdfplumber), OCR via Tesseract pour les PDF numérisés. |
+| **`cv_extractor.py`** | Extraction et classification en production. Supporte 4 fournisseurs LLM (Groq, Gemini, Mistral, OpenRouter). Inclut le calcul du score de qualité, la gestion des quotas avec retry, et un cache local pour éviter les ré-extractions inutiles. |
+| **`cv_saver.py`** | Exporte les données extraites en **JSON** (`output/cvs_data.json`) et **Excel** (`output/cvs_data.xlsx`). |
+| **`cv_comparator.py`** | Outil d'évaluation comparative des LLMs. Mesure le taux de succès, la latence, la complétude, la justesse d'extraction, la pertinence de classification et la qualité globale sur un même corpus de CVs. |
+
+> **Note** : Les modules `cv_extractor.py` et `cv_comparator.py` partagent exactement le même prompt, les mêmes fonctions d'appel aux fournisseurs et la même méthode de scoring — garantissant une comparaison équitable et reproductible.
 
 ---
 
 ## 📊 Résultats de l'Étude Comparative
 
-Le script de comparaison a été exécuté sur un échantillon de 10 CVs réels en évaluant 5 configurations de LLMs. L'étude comparative mesure :
-- **Le taux de succès** (requêtes ayant abouti à un JSON valide).
-- **La latence moyenne** de réponse.
-- **La complétude moyenne** (taux de remplissage des champs JSON attendus).
-- **La justesse d'extraction** (nom, e-mail et téléphone validés manuellement par rapport à une vérité terrain).
-- **La pertinence de la classification** thématique (pertinence du domaine principal identifié).
-- **Le type d'erreurs** rencontrées (Quota 429, timeout, parsing JSON).
+Exécutée sur **10 CVs réels**, avec **5 configurations LLM** :
 
-### Tableau de Synthèse Réel (10 CVs testés)
-
-| Modèle / IA | Succès % | Latence Moyenne | Complétude % | Justesse Extraction | Classification Pertinente | Erreurs Quota (429) | Erreurs Parsing | Tests |
+| Modèle / IA | Succès % | Latence Moy. | Complétude % | Justesse % | Classification % | Qualité Moy. | Quota (429) | Tests |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Llama-3.3-70B (Groq)** | **100.0%** | **1.41s** | 90.0% | 100.0% | 100.0% | 0 | 0 | 10 |
-| **GPT-OSS-20B (OpenRouter)** | **80.0%** | 19.10s | 89.0% | 100.0% | 100.0% | 0 | 2 | 10 |
-| **OpenRouter Free (auto)** | **80.0%** | 46.48s | 88.2% | 100.0% | 100.0% | 1 | 1 | 10 |
-| **Gemini 2.5 Flash** | **80.0%** | 15.89s | 88.2% | 100.0% | 100.0% | 2 | 0 | 10 |
-| **Gemini 2.5 Flash-Lite** | **40.0%** | 21.82s | 89.7% | 100.0% | 100.0% | 6 | 0 | 10 |
+| **Llama-3.3-70B (Groq)** | **100%** | **1.41s** | 90.0% | 100% | 100% | — | 0 | 10 |
+| **GPT-OSS-20B (OpenRouter)** | 80% | 19.10s | 89.0% | 100% | 100% | — | 0 | 10 |
+| **OpenRouter Free (auto)** | 80% | 46.48s | 88.2% | 100% | 100% | — | 1 | 10 |
+| **Gemini 2.5 Flash** | 80% | 15.89s | 88.2% | 100% | 100% | — | 2 | 10 |
+| **Gemini 2.5 Flash-Lite** | 40% | 21.82s | 89.7% | 100% | 100% | — | 6 | 10 |
 
-> 💡 **Observation Clé** : Les modèles Gemini ont un taux de justesse et de classification parfait (100 %) lors des appels réussis. Leurs taux de succès plus bas (80 % et 40 %) sont exclusivement causés par les limites de quotas de requêtes de leur formule gratuite (erreurs `429 RESOURCE_EXHAUSTED`), et non par un défaut d'analyse.
+> 💡 **Observation clé** : Les modèles Gemini atteignent 100 % de justesse et de pertinence de classification lors des appels réussis. Leurs taux de succès inférieurs sont exclusivement causés par les limites de quota de leur tier gratuit (erreurs `429 RESOURCE_EXHAUSTED`), et non par un défaut d'analyse.
 
 ---
 
@@ -51,8 +39,7 @@ Le script de comparaison a été exécuté sur un échantillon de 10 CVs réels 
 
 ### Prérequis
 - Python 3.10+
-- Tesseract OCR (installé sur la machine et configuré dans le code)
-- Elasticsearch (optionnel, requis uniquement pour `cv_injector.py`)
+- Tesseract OCR (installé sur la machine et accessible dans le PATH)
 
 ### 1. Cloner le dépôt
 ```bash
@@ -60,42 +47,82 @@ git clone https://github.com/djarbouiamine/cv-pipeline-stage.git
 cd cv-pipeline-stage
 ```
 
-### 2. Configurer les variables d'environnement
-Créez un fichier `.env` à la racine du projet et renseignez vos clés d'API gratuites :
+### 2. Installer les dépendances
+```bash
+pip install pymupdf pdfplumber pytesseract pillow groq google-genai requests openpyxl
+```
+
+### 3. Configurer les variables d'environnement
+Créez un fichier `.env` à la racine du projet avec vos clés d'API :
 ```env
 GROQ_API_KEY=votre_cle_groq
 GEMINI_API_KEY=votre_cle_gemini
 OPENROUTER_API_KEY=votre_cle_openrouter
 MISTRAL_API_KEY=votre_cle_mistral
 ```
-*(Le fichier `.env` est automatiquement ignoré par Git via le `.gitignore` pour des raisons de sécurité).*
+*(Au moins une clé est requise. Le fichier `.env` est ignoré par Git via `.gitignore`.)*
 
 ---
 
 ## 🚀 Utilisation
 
-### 1. Exécuter le pipeline de production
-Traite tous les CVs situés dans le dossier `cvs/` :
+### 1. Extraire et classifier les CVs
+
+Traite tous les CVs du dossier `cvs/` avec le fournisseur par défaut (Groq) :
 ```bash
 python cv_extractor.py
 ```
-Pour forcer un fournisseur spécifique sans fallback :
+
+Forcer un fournisseur et/ou un modèle spécifique :
 ```bash
-python cv_extractor.py --provider gemini --model gemini-2.5-flash
+python cv_extractor.py --provider gemini
+python cv_extractor.py --provider mistral --model mistral-medium-latest
+python cv_extractor.py --provider openrouter --model meta-llama/llama-3.3-70b-instruct:free
 ```
 
-### 2. Lancer l'étude comparative des modèles
-Pour tester tous les modèles candidats :
+Fournisseurs disponibles : `groq`, `gemini`, `mistral`, `openrouter`.
+
+### 2. Sauvegarder les résultats
+
+```bash
+python cv_saver.py
+```
+Génère `output/cvs_data.json` et `output/cvs_data.xlsx`.
+
+### 3. Lancer l'étude comparative des modèles
+
+Tester tous les modèles candidats :
 ```bash
 python cv_comparator.py
 ```
-Pour filtrer et comparer uniquement des fournisseurs précis :
+
+Filtrer par fournisseur :
 ```bash
 python cv_comparator.py --provider groq --provider gemini
 ```
-Pour tester un modèle unique :
+
+Tester un modèle unique :
 ```bash
 python cv_comparator.py --model llama-3.3-70b-versatile
 ```
 
-Les rapports détaillés en JSON et les résumés consolidés en CSV sont automatiquement générés dans le dossier `output/`.
+Les rapports détaillés (JSON) et les résumés consolidés (CSV) sont automatiquement générés dans le dossier `output/`.
+
+---
+
+## 📁 Structure du Projet
+
+```
+cv-pipeline-stage/
+├── cvs/                   # Dossier contenant les CVs PDF à analyser
+├── output/                # Résultats générés (JSON, Excel, CSV)
+│   ├── cvs_data.json
+│   ├── cvs_data.xlsx
+│   └── comparaison_*.csv
+├── cv_reader.py           # Lecture et OCR des PDFs
+├── cv_extractor.py        # Extraction multi-provider + scoring qualité
+├── cv_saver.py            # Export JSON / Excel
+├── cv_comparator.py       # Comparaison et évaluation des LLMs
+├── .env                   # Clés API (non versionné)
+└── README.md
+```
