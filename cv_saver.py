@@ -53,7 +53,20 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
         # Fonction helper pour éviter les erreurs null
         def safe_join(field):
             value = data.get(field) or []
-            return ", ".join(value) if isinstance(value, list) else ""
+            if not isinstance(value, list):
+                return str(value) if value else ""
+            
+            str_items = []
+            for item in value:
+                if isinstance(item, dict):
+                    name = item.get("nom") or item.get("title") or item.get("name")
+                    if name:
+                        str_items.append(str(name))
+                    else:
+                        str_items.append(json.dumps(item, ensure_ascii=False))
+                else:
+                    str_items.append(str(item))
+            return ", ".join(str_items)
         
         ws.cell(row=row, column=1, value=result["filename"])
         ws.cell(row=row, column=2, value=data.get("nom", ""))
