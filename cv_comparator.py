@@ -436,8 +436,14 @@ if __name__ == "__main__":
     if len(providers_tested) == 1:
         suffix = f"{list(providers_tested)[0]}_"
 
-    cvs = read_all_cvs("cvs/")
-    # cvs = cvs[:3]  # décommente pour un test rapide
+    from cv_reader import read_cv_text
+
+fichiers_a_tester = ["CV_Amine_Jarboui.pdf", "cv_yesmine_zayani.pdf"]  # ← mets les noms que tu veux
+
+cvs = []
+for filename in fichiers_a_tester:
+    text = read_cv_text(os.path.join("cvs", filename))
+    cvs.append({"filename": filename, "text": text})
 
     all_results = compare_models_on_cvs(cvs, candidates_to_test=candidates_to_test, delay_between_calls=2.0)
     summary_rows = summarize_results(all_results)

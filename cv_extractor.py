@@ -2,6 +2,8 @@ import json
 import time
 import os
 import requests
+import numpy as np
+from sentence_transformers import SentenceTransformer
 
 # Charger le fichier .env s'il existe
 if os.path.exists(".env"):
@@ -52,12 +54,147 @@ DEFAULT_MODELS = {
 }
 
 
+def _get_env_float(name, default):
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    try:
+        return float(val)
+    except ValueError:
+        print(f"⚠️ Valeur invalide pour {name} dans .env, utilisation du défaut ({default})")
+        return default
+
+
+# ── Poids du score de qualité (configurables via .env) ──────────
+QUALITY_WEIGHTS = {
+    "diplome": _get_env_float("QUALITY_WEIGHT_DIPLOME", 25),
+    "certifications": _get_env_float("QUALITY_WEIGHT_CERTIFICATIONS", 20),
+    "diversite_technique": _get_env_float("QUALITY_WEIGHT_TECH", 20),
+    "projets": _get_env_float("QUALITY_WEIGHT_PROJETS", 25),
+    "langues": _get_env_float("QUALITY_WEIGHT_LANGUES", 10),
+}
+
+# Normalisation automatique : peu importe ce que l'utilisateur met dans le .env
+# (même si ça ne fait pas 100 au total), le ratio entre les poids est conservé
+# et le total est toujours ramené à 100%.
+_total_w = sum(QUALITY_WEIGHTS.values())
+if _total_w <= 0:
+    raise ValueError("La somme des QUALITY_WEIGHT_* dans .env doit être > 0")
+QUALITY_WEIGHTS = {k: (v / _total_w) * 100 for k, v in QUALITY_WEIGHTS.items()}
+
+
+# ── Bascule automatique entre providers (configurable via .env) ──
+FALLBACK_ENABLED = os.environ.get("AUTO_FALLBACK", "false").strip().lower() in ("1", "true", "yes")
+FALLBACK_ORDER = [p.strip() for p in os.environ.get(
+    "FALLBACK_ORDER", "groq,openrouter,mistral,gemini"
+).split(",") if p.strip()]
+MAX_AUTO_WAIT_S = _get_env_float("GROQ_MAX_AUTO_WAIT_S", 1200)
+
+
+class QuotaTimeoutError(Exception):
+    """Levée quand le délai d'attente du quota dépasse le plafond configuré."""
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Normalisation des noms de domaines par embeddings sémantiques.
+# But : éviter que le LLM invente un nom de domaine légèrement différent à
+# chaque CV ("Cybersécurité" vs "Cybersecurity" vs "Sécurité informatique"),
+# ce qui provoquerait une explosion du nombre de champs dans Elasticsearch
+# (chaque clé de scores_categories devient un champ mappé).
+# ---------------------------------------------------------------------------
+
+embedding_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+SIMILARITE_SEUIL = _get_env_float("DOMAINE_SIMILARITE_SEUIL", 0.75)
+
+DOMAINES_REF_PATH = "output/.domaines_reference.json"
+DOMAINES_REFERENCE = []      # noms de domaines validés (str)
+DOMAINES_EMBEDDINGS = []     # vecteurs numpy correspondants, même index
+
+
+def _charger_domaines_reference():
+    """Recharge la liste de référence depuis le disque si elle existe."""
+    global DOMAINES_REFERENCE, DOMAINES_EMBEDDINGS
+    if os.path.exists(DOMAINES_REF_PATH):
+        try:
+            with open(DOMAINES_REF_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            DOMAINES_REFERENCE = data.get("noms", [])
+            DOMAINES_EMBEDDINGS = [np.array(e) for e in data.get("embeddings", [])]
+            print(f"📂 {len(DOMAINES_REFERENCE)} domaines de référence chargés depuis {DOMAINES_REF_PATH}")
+        except Exception as e:
+            print(f"⚠️ Impossible de charger {DOMAINES_REF_PATH} : {e}")
+
+
+def _sauver_domaines_reference():
+    """Sauvegarde la liste de référence sur disque (noms + embeddings)."""
+    os.makedirs("output", exist_ok=True)
+    try:
+        with open(DOMAINES_REF_PATH, "w", encoding="utf-8") as f:
+            json.dump({
+                "noms": DOMAINES_REFERENCE,
+                "embeddings": [e.tolist() for e in DOMAINES_EMBEDDINGS],
+            }, f, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ Impossible de sauvegarder {DOMAINES_REF_PATH} : {e}")
+
+
+_charger_domaines_reference()
+
+
+def normaliser_domaine(nom_domaine):
+    """
+    Compare un nom de domaine aux domaines déjà connus (similarité cosinus
+    sur les embeddings). Renvoie le nom existant si assez proche, sinon
+    ajoute ce nouveau nom à la référence et le renvoie tel quel.
+    """
+    if not nom_domaine:
+        return nom_domaine
+
+    if not DOMAINES_REFERENCE:
+        emb = embedding_model.encode(nom_domaine)
+        DOMAINES_REFERENCE.append(nom_domaine)
+        DOMAINES_EMBEDDINGS.append(emb)
+        return nom_domaine
+
+    nouveau_emb = embedding_model.encode(nom_domaine)
+    matrice = np.array(DOMAINES_EMBEDDINGS)
+    similarites = np.dot(matrice, nouveau_emb) / (
+        np.linalg.norm(matrice, axis=1) * np.linalg.norm(nouveau_emb) + 1e-10
+    )
+    meilleur_idx = int(np.argmax(similarites))
+
+    if similarites[meilleur_idx] >= SIMILARITE_SEUIL:
+        return DOMAINES_REFERENCE[meilleur_idx]
+
+    DOMAINES_REFERENCE.append(nom_domaine)
+    DOMAINES_EMBEDDINGS.append(nouveau_emb)
+    return nom_domaine
+
+
+def normaliser_categories(data):
+    """
+    Applique normaliser_domaine() à chaque clé de scores_categories.
+    Si deux clés du même CV se retrouvent fusionnées sur le même nom
+    normalisé, on garde le score le plus élevé des deux.
+    """
+    if "scores_categories" not in data or not data["scores_categories"]:
+        return data
+
+    nouveau_dict = {}
+    for domaine, score in data["scores_categories"].items():
+        domaine_normalise = normaliser_domaine(domaine)
+        nouveau_dict[domaine_normalise] = max(score, nouveau_dict.get(domaine_normalise, 0))
+
+    data["scores_categories"] = nouveau_dict
+    if nouveau_dict:
+        data["categorie_principale"] = max(nouveau_dict, key=nouveau_dict.get)
+
+    return data
+
+
 # ---------------------------------------------------------------------------
 # Score de qualité du CV
-# Principe : le LLM évalue qualitativement (projets, certifications) ou
-# extrait du texte brut (niveau de langue) ; Python fait TOUT le calcul
-# et l'agrégation. Aucun calcul de score global n'est fait par le LLM.
-# Ça marche pareil quel que soit le provider utilisé pour l'extraction.
 # ---------------------------------------------------------------------------
 
 def calculate_diploma_score(diplomes):
@@ -94,7 +231,6 @@ def calculate_certif_score(data):
     Score 0-100 agrégé à partir des évaluations qualitatives du LLM
     (evaluation_certifications -> score_qualite par certification).
     Agrégation : 50% moyenne générale + 50% meilleure certification.
-    Fallback sur un comptage simple si le LLM n'a pas fourni d'évaluation.
     """
     evaluations = data.get("evaluation_certifications") or []
     scores = []
@@ -195,9 +331,8 @@ def calculate_langue_score(data):
 def calculate_quality_score(data):
     """
     Calcule le score de qualité global (0-100) du CV.
-    Pondération : Diplôme 25% | Certifications 20% | Diversité technique 20%
-                | Projets 25% | Langues 10%
-    Aucun appel LLM supplémentaire : reproductible, sans coût de quota additionnel.
+    Pondération (configurable via .env, voir QUALITY_WEIGHTS) :
+    Diplôme | Certifications | Diversité technique | Projets | Langues
     """
     score_diplome = calculate_diploma_score(data.get("diplomes") or [])
     score_certif = calculate_certif_score(data)
@@ -206,11 +341,11 @@ def calculate_quality_score(data):
     score_langue = calculate_langue_score(data)
 
     score_global = (
-        score_diplome * 0.25
-        + score_certif * 0.20
-        + score_tech * 0.20
-        + score_projet * 0.25
-        + score_langue * 0.10
+        score_diplome * QUALITY_WEIGHTS["diplome"] / 100
+        + score_certif * QUALITY_WEIGHTS["certifications"] / 100
+        + score_tech * QUALITY_WEIGHTS["diversite_technique"] / 100
+        + score_projet * QUALITY_WEIGHTS["projets"] / 100
+        + score_langue * QUALITY_WEIGHTS["langues"] / 100
     )
 
     return {
@@ -242,6 +377,24 @@ def calculate_domain_scores_ponderes(data, score_qualite_globale):
     return result_100, result_10
 
 
+# ---------------------------------------------------------------------------
+# Conversion objet -> liste nested, pour correspondre au mapping Elasticsearch
+# "nested" ({"domaine": ..., "score": ...} par entrée). Doit toujours être
+# appelée en TOUTE DERNIÈRE étape : normaliser_categories() et
+# calculate_domain_scores_ponderes() ont besoin du format objet (dict) pour
+# fonctionner, donc cette conversion arrive après elles.
+# ---------------------------------------------------------------------------
+def convertir_en_liste_nested(valeur):
+    """
+    Convertit un dict {domaine: score} en liste [{"domaine": ..., "score": ...}].
+    Ne fait rien si c'est déjà une liste (ou vide/None) — sécurité en cas de
+    double appel ou de format déjà correct.
+    """
+    if isinstance(valeur, dict):
+        return [{"domaine": d, "score": s} for d, s in valeur.items()]
+    return valeur or []
+
+
 def get_retry_delay(err, default=10.0):
     """Extrait le délai d'attente recommandé depuis les headers HTTP si possible."""
     try:
@@ -259,7 +412,25 @@ def get_retry_delay(err, default=10.0):
 # Prompt partagé — utilisé par cv_extractor ET cv_comparator, pour que la
 # comparaison entre providers porte sur le MÊME prompt / format de sortie.
 # ---------------------------------------------------------------------------
-def build_prompt(text):
+def build_prompt(text, domaines_existants=None):
+    """
+    domaines_existants : liste de noms de domaines déjà utilisés pour
+    d'autres CVs (par défaut, la référence globale DOMAINES_REFERENCE,
+    mise à jour au fil de l'extraction). Injectée dans le prompt pour que
+    le LLM réutilise le même vocabulaire au lieu d'inventer une variante.
+    """
+    if domaines_existants is None:
+        domaines_existants = DOMAINES_REFERENCE
+
+    bloc_domaines = ""
+    if domaines_existants:
+        bloc_domaines = f"""
+Domaines déjà utilisés pour d'autres candidats (RÉUTILISE EXACTEMENT la
+même écriture si un domaine correspond au profil de ce candidat ; ne crée
+un nouveau nom que si aucun de ceux-ci ne convient vraiment) :
+{", ".join(domaines_existants)}
+"""
+
     return f"""
 Tu es un expert RH. Analyse ce CV et extrais les informations dans un JSON.
 Retourne UNIQUEMENT le JSON, rien d'autre.
@@ -276,6 +447,7 @@ Pour la classification :
 - Identifie TOI-MÊME les 2 ou 3 domaines professionnels les plus pertinents
   pour ce candidat (ne choisis pas dans une liste fixe, trouve les domaines
   qui correspondent vraiment à son profil)
+{bloc_domaines}
 - Donne un score de pertinence de 0 à 100 pour chaque domaine identifié
 - Indique le domaine principal (le plus haut score)
 
@@ -358,6 +530,8 @@ def _call_groq(prompt, model):
         temperature=0.2,
     )
     content = completion.choices[0].message.content.strip()
+    print("=== RAW GROQ CONTENT ===")
+    print(repr(content[:1000]))
     return json.loads(content)
 
 
@@ -374,6 +548,7 @@ def _call_mistral(prompt, model):
                           headers=headers, json=payload, timeout=60)
     if resp.status_code != 200:
         raise RuntimeError(f"HTTP {resp.status_code} : {resp.text[:200]}")
+    resp.encoding = "utf-8"
     content = resp.json()["choices"][0]["message"]["content"]
     content = content.replace("```json", "").replace("```", "").strip()
     return json.loads(content)
@@ -397,6 +572,7 @@ def _call_openrouter(prompt, model):
                           headers=headers, json=payload, timeout=60)
     if resp.status_code != 200:
         raise RuntimeError(f"HTTP {resp.status_code} : {resp.text[:200]}")
+    resp.encoding = "utf-8"
     content = resp.json()["choices"][0]["message"]["content"]
     content = content.replace("```json", "").replace("```", "").strip()
     return json.loads(content)
@@ -438,9 +614,14 @@ def _is_transient_server_error(e):
 def extract_cv_data(text, provider="groq", model=None):
     """
     Prend le texte brut d'un CV, extrait via le provider demandé,
-    et enrichit avec le score de qualité calculé par Python.
+    normalise les noms de domaines (embeddings) et enrichit avec le score
+    de qualité calculé par Python.
 
     provider : "groq" (défaut), "mistral", "openrouter" ou "gemini"
+
+    Lève QuotaTimeoutError si le quota est dépassé au-delà du plafond
+    MAX_AUTO_WAIT_S (au lieu d'attendre indéfiniment) — voir extract_cv_data_auto
+    pour la bascule automatique vers un autre provider dans ce cas.
     """
     if provider not in PROVIDER_FUNCTIONS:
         raise ValueError(f"Provider inconnu : '{provider}'. Choix possibles : {list(PROVIDER_FUNCTIONS)}")
@@ -457,6 +638,7 @@ def extract_cv_data(text, provider="groq", model=None):
     for attempt in range(max_retries):
         try:
             parsed = call_fn(prompt, model)
+            parsed = normaliser_categories(parsed)
 
             quality = calculate_quality_score(parsed)
             parsed["score_qualite_globale"] = quality["score_qualite_globale"]
@@ -468,6 +650,14 @@ def extract_cv_data(text, provider="groq", model=None):
             )
             parsed["scores_categories_ponderes"] = ponderes_100
             parsed["scores_categories_ponderes_sur_10"] = ponderes_10
+
+            # Conversion finale objet -> liste, pour correspondre au mapping
+            # Elasticsearch "nested". TOUTE DERNIÈRE étape (voir commentaire
+            # au-dessus de la définition de convertir_en_liste_nested).
+            parsed["scores_categories"] = convertir_en_liste_nested(parsed["scores_categories"])
+            parsed["scores_categories_ponderes"] = convertir_en_liste_nested(parsed["scores_categories_ponderes"])
+            parsed["scores_categories_ponderes_sur_10"] = convertir_en_liste_nested(parsed["scores_categories_ponderes_sur_10"])
+
 
             return parsed
 
@@ -481,6 +671,11 @@ def extract_cv_data(text, provider="groq", model=None):
             last_error = e
             if _is_quota_error(e):
                 wait_time = get_retry_delay(e, default=10.0) + 1.0
+                if wait_time > MAX_AUTO_WAIT_S:
+                    raise QuotaTimeoutError(
+                        f"Quota {provider} dépasse le plafond configuré "
+                        f"({wait_time:.0f}s > {MAX_AUTO_WAIT_S:.0f}s)"
+                    ) from e
                 print(f"⚠️ Quota/rate limit {provider} (429). Attente de {wait_time:.2f}s "
                       f"(essai {attempt + 1}/{max_retries})...")
                 time.sleep(wait_time)
@@ -501,6 +696,34 @@ def extract_cv_data(text, provider="groq", model=None):
     )
 
 
+def extract_cv_data_auto(text, provider=None, model=None):
+    """
+    Comme extract_cv_data(), mais si AUTO_FALLBACK=true dans le .env,
+    bascule automatiquement sur le provider suivant de FALLBACK_ORDER
+    quand le quota du provider actuel dépasse GROQ_MAX_AUTO_WAIT_S.
+
+    Si AUTO_FALLBACK=false (défaut), le comportement est identique à
+    extract_cv_data() : l'erreur remonte telle quelle, sans bascule.
+    """
+    order = [provider] if provider else []
+    order += [p for p in FALLBACK_ORDER if p not in order]
+
+    last_error = None
+    for p in order:
+        if not AVAILABLE_KEYS.get(p):
+            continue
+        try:
+            return extract_cv_data(text, provider=p, model=model if p == provider else None)
+        except QuotaTimeoutError as e:
+            last_error = e
+            if not FALLBACK_ENABLED:
+                raise
+            print(f"↪️  Bascule automatique : {p} → provider suivant ({e})")
+            continue
+
+    raise last_error or RuntimeError("Aucun provider disponible pour l'extraction.")
+
+
 def extract_all_cvs(cvs, provider="groq", model=None):
     """
     Prend la liste des CVs du Reader, extrait tous avec le provider choisi.
@@ -515,13 +738,14 @@ def extract_all_cvs(cvs, provider="groq", model=None):
 
         print(f"🤖 Extraction ({provider}) : {cv['filename']}")
         try:
-            data = extract_cv_data(cv["text"], provider=provider, model=model)
+            data = extract_cv_data_auto(cv["text"], provider=provider, model=model)
             extracted.append({"filename": cv["filename"], "data": data, "provider": provider})
             print(f"✅ Extrait : {cv['filename']}")
         except Exception as e:
             print(f"❌ Échec sur {cv['filename']} : {e}")
             extracted.append({"filename": cv["filename"], "data": None, "error": str(e), "provider": provider})
 
+    _sauver_domaines_reference()
     return extracted
 
 

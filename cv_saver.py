@@ -15,10 +15,37 @@ def save_to_json(results, output_path="output/cvs_data.json"):
     print(f"✅ JSON sauvegardé : {output_path}")
 
 
+def format_scores_list(items):
+    """
+    Formate une liste [{"domaine": ..., "score": ...}] en chaîne lisible pour Excel.
+    Ex: [{"domaine": "Dev Web", "score": 85}] -> "Dev Web: 85, IA: 70"
+
+    Gère aussi l'ancien format (dict) au cas où un vieux JSON traînerait encore,
+    pour ne pas planter dessus.
+    """
+    if not items:
+        return ""
+
+    # Nouveau format : liste de dicts {"domaine": ..., "score": ...}
+    if isinstance(items, list):
+        parts = []
+        for item in items:
+            if isinstance(item, dict) and "domaine" in item:
+                parts.append(f"{item['domaine']}: {item.get('score', '')}")
+        return ", ".join(parts)
+
+    # Ancien format (fallback de sécurité) : dict {domaine: score}
+    if isinstance(items, dict):
+        return ", ".join(f"{k}: {v}" for k, v in items.items())
+
+    return ""
+
+
 def format_dict_scores(d):
     """
-    Formate un dict {domaine: score} en une chaîne lisible pour Excel.
-    Ex: {"Dev Web": 85, "IA": 70} -> "Dev Web: 85, IA: 70"
+    Formate un dict à clés fixes (ex: details_score_qualite) en chaîne lisible.
+    Ce champ-là reste un dict classique (diplome, certifications, projets...),
+    pas de risque d'explosion puisque les clés sont toujours les mêmes.
     """
     if not d or not isinstance(d, dict):
         return ""
@@ -50,13 +77,11 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
         "Domaines & pertinence (LLM)", "Domaines pondérés (score final)",
     ]
 
-    # Écrire les entêtes
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal="center")
-        # Colonnes de texte long un peu plus larges
         width = 40 if header in [
             "Détail score qualité", "Domaines & pertinence (LLM)",
             "Domaines pondérés (score final)", "Technologies", "Projets"
@@ -67,7 +92,6 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
     for row, result in enumerate(results, 2):
         data = result.get("data") or {}
 
-        # Fonction helper pour éviter les erreurs null
         def safe_join(field):
             value = data.get(field) or []
             return ", ".join(value) if isinstance(value, list) else ""
@@ -89,14 +113,14 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
         ws.cell(row=row, column=15, value=safe_join("certifications"))
         ws.cell(row=row, column=16, value=safe_join("langues"))
 
-        # --- Nouvelles colonnes : scores de qualité ---
+        # --- Scores de qualité ---
         ws.cell(row=row, column=17, value=data.get("score_qualite_globale", ""))
         ws.cell(row=row, column=18, value=data.get("score_qualite_globale_sur_10", ""))
         ws.cell(row=row, column=19, value=format_dict_scores(data.get("details_score_qualite")))
-        ws.cell(row=row, column=20, value=format_dict_scores(data.get("scores_categories")))
-        ws.cell(row=row, column=21, value=format_dict_scores(data.get("scores_categories_ponderes")))
+        # Ces deux-là sont maintenant des LISTES (nouveau format nested)
+        ws.cell(row=row, column=20, value=format_scores_list(data.get("scores_categories")))
+        ws.cell(row=row, column=21, value=format_scores_list(data.get("scores_categories_ponderes")))
 
-        # Cas d'un CV en échec d'extraction (data = None) : on note l'erreur
         if not data and result.get("error"):
             ws.cell(row=row, column=2, value=f"❌ ÉCHEC : {result['error']}")
 
@@ -109,13 +133,9 @@ if __name__ == "__main__":
     from cv_reader import read_all_cvs
     from cv_extractor import extract_all_cvs
 
-    # Lire les CVs
     cvs = read_all_cvs("cvs/")
-
-    # Extraire les données
     results = extract_all_cvs(cvs)
 
-    # Sauvegarder
     save_to_json(results)
     save_to_excel(results)
 
