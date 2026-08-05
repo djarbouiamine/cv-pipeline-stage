@@ -11,6 +11,9 @@ MAPPING = {
             "linkedin": {"type": "keyword"},
             "localisation": {"type": "text"},
             "categorie_principale": {"type": "keyword"},
+            "domaine_1": {"type": "keyword"}, "score_1": {"type": "float"},
+            "domaine_2": {"type": "keyword"}, "score_2": {"type": "float"},
+            "domaine_3": {"type": "keyword"}, "score_3": {"type": "float"},
             "scores_categories": {
                 "type": "nested",
                 "properties": {

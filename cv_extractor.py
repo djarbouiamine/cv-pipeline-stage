@@ -648,8 +648,18 @@ def extract_cv_data(text, provider="groq", model=None):
             ponderes_100, ponderes_10 = calculate_domain_scores_ponderes(
                 parsed, quality["score_qualite_globale"]
             )
+            ponderes_100, ponderes_10 = calculate_domain_scores_ponderes(
+                parsed, quality["score_qualite_globale"]
+            )
             parsed["scores_categories_ponderes"] = ponderes_100
             parsed["scores_categories_ponderes_sur_10"] = ponderes_10
+
+            # Flatten : domaine_1/score_1, domaine_2/score_2, domaine_3/score_3
+            # (pour affichage simple dans Kibana, en plus du format nested)
+            domaines_tries = sorted(parsed["scores_categories"].items(), key=lambda x: x[1], reverse=True)
+            for i, (domaine, score) in enumerate(domaines_tries[:3], start=1):
+                parsed[f"domaine_{i}"] = domaine
+                parsed[f"score_{i}"] = score
 
             # Conversion finale objet -> liste, pour correspondre au mapping
             # Elasticsearch "nested". TOUTE DERNIÈRE étape (voir commentaire
