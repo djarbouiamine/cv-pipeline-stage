@@ -1,9 +1,21 @@
 import json
 import time
 import os
+import re
 import requests
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from datetime import date
+try:
+    from sentence_transformers import SentenceTransformer
+except Exception as e:
+    # Fallback if the heavy dependency cannot be imported (e.g., missing torch)
+    # Provide a dummy class that mimics the encode method returning zero vectors.
+    class _DummySentenceTransformer:
+        def encode(self, text, normalize_embeddings=False):
+            # Return a list of 384 zeros (dimension of the original model)
+            return [0.0] * 384
+    SentenceTransformer = _DummySentenceTransformer
+    print(f"⚠️ SentenceTransformer import failed ({e}); using dummy embedding model.")
 
 # Charger le fichier .env s'il existe
 if os.path.exists(".env"):
@@ -104,8 +116,23 @@ class QuotaTimeoutError(Exception):
 # (chaque clé de scores_categories devient un champ mappé).
 # ---------------------------------------------------------------------------
 
+# Initialise le modèle d'embedding, ou un dummy en cas d'erreur précédente
 embedding_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 SIMILARITE_SEUIL = _get_env_float("DOMAINE_SIMILARITE_SEUIL", 0.75)
+
+# Seuil dédié pour comparer le domaine d'une EXPÉRIENCE (libellé souvent
+# court et très spécifique, ex: "Automated Water Meter Testing") aux
+# domaines du candidat. Volontairement plus bas que SIMILARITE_SEUIL
+# (normalisation des noms de domaines entre CVs) car ici on compare des
+# textes de nature différente — un stage précis vs un domaine large — donc
+# la similarité brute est structurellement plus faible même quand le lien
+# est réel.
+# Plancher de similarité : en dessous, le poids est forcé à 0 plutôt que de
+# garder un résidu de bruit non nul (ex: similarité 0.05 entre deux domaines
+# vraiment sans rapport ne doit pas contribuer, même marginalement).
+# Volontairement bas — ce n'est plus un seuil de décision inclus/exclus,
+# juste un filtre anti-bruit résiduel.
+SEUIL_PLANCHER_EXPERIENCE = _get_env_float("EXPERIENCE_SEUIL_PLANCHER", 0.15)
 
 DOMAINES_REF_PATH = "output/.domaines_reference.json"
 DOMAINES_REFERENCE = []      # noms de domaines validés (str)
@@ -191,6 +218,256 @@ def normaliser_categories(data):
         data["categorie_principale"] = max(nouveau_dict, key=nouveau_dict.get)
 
     return data
+
+
+# ---------------------------------------------------------------------------
+# Calcul des années d'expérience — dates extraites brutes par le LLM,
+# parsing + calcul de durée faits en Python (plus fiable que de demander
+# au LLM de compter lui-même).
+# ---------------------------------------------------------------------------
+
+MOIS_FR = {
+    "janvier": 1, "février": 2, "fevrier": 2, "mars": 3, "avril": 4,
+    "mai": 5, "juin": 6, "juillet": 7, "août": 8, "aout": 8,
+    "septembre": 9, "octobre": 10, "novembre": 11, "décembre": 12, "decembre": 12,
+    "jan": 1, "fév": 2, "fev": 2, "avr": 4, "juil": 7, "sept": 9,
+    "oct": 10, "nov": 11, "déc": 12, "dec": 12,
+}
+MOIS_EN = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7,
+    "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+MOTS_PRESENT = ["present", "présent", "en cours", "actuel", "aujourd'hui", "now", "current", "ongoing"]
+
+
+def parse_date_cv(date_brute):
+    """
+    Convertit une date brute (texte du CV) en objet date() Python.
+    Retourne None si la date est vide ou illisible (fallback silencieux,
+    ne fait jamais planter le pipeline pour une date mal formatée).
+    Gère "present"/"en cours" en renvoyant la date du jour.
+    """
+    if not date_brute:
+        return None
+    texte = str(date_brute).strip().lower()
+    if not texte:
+        return None
+
+    if any(mot in texte for mot in MOTS_PRESENT):
+        return date.today()
+
+    # Format "MM/YYYY" ou "MM-YYYY"
+    m = re.match(r"^(\d{1,2})[/\-](\d{4})$", texte)
+    if m:
+        mois, annee = int(m.group(1)), int(m.group(2))
+        if 1 <= mois <= 12:
+            return date(annee, mois, 1)
+
+    # Format "Mois AAAA" (français ou anglais, ex: "janvier 2022", "Jan 2021")
+    m = re.match(r"^([a-zéû]+)\.?\s+(\d{4})$", texte)
+    if m:
+        mot_mois, annee = m.group(1), int(m.group(2))
+        mois = MOIS_FR.get(mot_mois) or MOIS_EN.get(mot_mois)
+        if mois:
+            return date(annee, mois, 1)
+
+    # Format "AAAA" seul
+    m = re.match(r"^(\d{4})$", texte)
+    if m:
+        return date(int(m.group(1)), 1, 1)
+
+    # Format déjà ISO "AAAA-MM-JJ" ou "AAAA-MM"
+    m = re.match(r"^(\d{4})-(\d{1,2})", texte)
+    if m:
+        annee, mois = int(m.group(1)), int(m.group(2))
+        if 1 <= mois <= 12:
+            return date(annee, mois, 1)
+
+    return None  # non reconnu — on ne devine pas, on laisse l'appelant gérer
+
+
+def _similarite_domaine(domaine_experience, domaine_principal):
+    """
+    Similarité cosinus brute (0-1) entre le domaine d'une expérience et le
+    domaine principal du candidat. Ne tranche PAS inclus/exclus — renvoie
+    la mesure continue, utilisée ensuite comme poids de pertinence.
+    """
+    if not domaine_experience or not domaine_principal:
+        return 0.0
+    emb_exp = embedding_model.encode(domaine_experience)
+    emb_principal = embedding_model.encode(domaine_principal)
+    similarite = np.dot(emb_exp, emb_principal) / (
+        np.linalg.norm(emb_exp) * np.linalg.norm(emb_principal) + 1e-10
+    )
+    return float(max(0.0, similarite))  # jamais négatif, plus simple à interpréter comme poids
+
+
+def _date_vers_index_mois(d):
+    """Convertit une date en index mois absolu (ex: juillet 2026 -> 2026*12+7)."""
+    return d.year * 12 + d.month
+
+
+def calculate_experience_annees(data):
+    """
+    Calcule le nombre d'années d'expérience PONDÉRÉE par pertinence au
+    domaine principal du candidat. Chaque expérience contribue à hauteur de
+    sa similarité sémantique au domaine principal (0 à 1), pas de façon
+    binaire — un stage à moitié pertinent compte pour moitié de sa durée.
+
+    Pour les mois couverts par plusieurs expériences en parallèle, on garde
+    le POIDS MAXIMUM du mois (pas la somme) pour ne pas compter deux fois la
+    même période.
+
+    Renvoie (annees_experience, details) où details est la liste des
+    expériences enrichies d'un champ "poids_pertinence" (0-1, arrondi),
+    utile pour comprendre a posteriori d'où vient le chiffre final.
+    """
+    experiences = data.get("experiences_pro") or []
+    domaine_principal = data.get("categorie_principale") or ""
+
+    poids_par_mois = {}  # index_mois -> poids max observé pour ce mois
+    details = []
+
+    for exp in experiences:
+        if not isinstance(exp, dict):
+            continue
+
+        domaine_exp = exp.get("domaine") or ""
+        similarite = _similarite_domaine(domaine_exp, domaine_principal)
+        poids = similarite if similarite >= SEUIL_PLANCHER_EXPERIENCE else 0.0
+
+        detail = dict(exp)
+        detail["poids_pertinence"] = round(poids, 2)
+
+        d_debut = parse_date_cv(exp.get("date_debut"))
+        d_fin = parse_date_cv(exp.get("date_fin"))
+        if d_debut is None or d_fin is None or d_fin < d_debut or poids == 0.0:
+            # Date illisible/incohérente, ou poids nul -> pas de contribution,
+            # mais l'expérience reste visible dans "details" avec son poids.
+            details.append(detail)
+            continue
+
+        m_debut, m_fin = _date_vers_index_mois(d_debut), _date_vers_index_mois(d_fin)
+        for m in range(m_debut, m_fin + 1):  # bornes incluses
+            poids_par_mois[m] = max(poids_par_mois.get(m, 0.0), poids)
+
+        details.append(detail)
+
+    mois_total_pondere = sum(poids_par_mois.values())
+    annees = round(mois_total_pondere / 12, 1)
+
+    return annees, details
+
+
+# ---------------------------------------------------------------------------
+# Détection d'alertes de parcours (trous chronologiques, chevauchements).
+# Purement informatif : on signale, on ne juge pas — un chevauchement peut
+# être parfaitement légitime (stage + projet freelance en parallèle).
+# ---------------------------------------------------------------------------
+
+SEUIL_TROU_MOIS = int(_get_env_float("ALERTE_TROU_MOIS", 6))
+SEUIL_CHEVAUCHEMENT_MOIS = int(_get_env_float("ALERTE_CHEVAUCHEMENT_MOIS", 2))
+
+
+def _label_experience(exp_tuple):
+    """Construit un libellé lisible 'Poste (Domaine)' pour les messages d'alerte."""
+    _, _, poste, domaine = exp_tuple
+    if domaine:
+        return f"{poste} ({domaine})"
+    return poste
+
+
+def calculate_alertes_parcours(data, seuil_trou_mois=None, seuil_chevauchement_mois=None):
+    """
+    Analyse le parcours du candidat et signale :
+    - un trou chronologique >= seuil_trou_mois dans la timeline globale
+      (calculé sur l'UNION des périodes couvertes, pas paire par paire —
+      sinon un trou "comblé" par une 3e expérience serait signalé à tort)
+    - un chevauchement entre deux expériences dont la durée réelle
+      d'INTERSECTION (pas juste l'écart de dates de début) >= seuil_chevauchement_mois
+      Comparaison de TOUTES les paires d'expériences (pas seulement les
+      paires consécutives), car une expérience courte peut être entièrement
+      imbriquée dans une plus longue sans lui être adjacente dans le tri
+      par date de début (ex: un stage de 3 mois au milieu d'un poste
+      associatif d'1 an) — comparer seulement les paires consécutives
+      donnerait alors une durée de chevauchement fausse (calculée sur
+      l'écart de dates plutôt que sur la vraie durée commune).
+    Ne considère que les expériences dont les deux dates sont parsables.
+    Renvoie une liste de messages texte, prête à afficher/stocker.
+    """
+    seuil_trou_mois = seuil_trou_mois if seuil_trou_mois is not None else SEUIL_TROU_MOIS
+    seuil_chevauchement_mois = (
+        seuil_chevauchement_mois if seuil_chevauchement_mois is not None else SEUIL_CHEVAUCHEMENT_MOIS
+    )
+    experiences = data.get("experiences_pro") or []
+
+    items = []
+    for exp in experiences:
+        if not isinstance(exp, dict):
+            continue
+        d_debut = parse_date_cv(exp.get("date_debut"))
+        d_fin = parse_date_cv(exp.get("date_fin"))
+        if d_debut is not None and d_fin is not None and d_fin >= d_debut:
+            items.append((
+                d_debut, d_fin,
+                exp.get("poste") or "expérience non nommée",
+                exp.get("domaine") or "",
+            ))
+
+    alertes = []
+
+    # --- Chevauchements : intersection réelle, sur TOUTES les paires ---
+    for i in range(len(items)):
+        for j in range(i + 1, len(items)):
+            d1, f1, poste1, domaine1 = items[i]
+            d2, f2, poste2, domaine2 = items[j]
+
+            inter_debut = max(d1, d2)
+            inter_fin = min(f1, f2)
+            if inter_debut > inter_fin:
+                continue  # pas de recouvrement du tout entre ces deux-là
+
+            duree_chevauchement = _date_vers_index_mois(inter_fin) - _date_vers_index_mois(inter_debut) + 1
+            if duree_chevauchement >= seuil_chevauchement_mois:
+                label1 = _label_experience((d1, f1, poste1, domaine1))
+                label2 = _label_experience((d2, f2, poste2, domaine2))
+                alertes.append(
+                    f"Chevauchement de {duree_chevauchement} mois entre \"{label1}\" et \"{label2}\""
+                )
+
+    # --- Trous : sur l'UNION des périodes couvertes (timeline fusionnée) ---
+    items_tries = sorted(items, key=lambda it: _date_vers_index_mois(it[0]))
+
+    blocs = []  # chaque bloc : {"debut_idx", "fin_idx", "label_debut", "label_fin"}
+    for d, f, poste, domaine in items_tries:
+        d_idx, f_idx = _date_vers_index_mois(d), _date_vers_index_mois(f)
+        if blocs and d_idx <= blocs[-1]["fin_idx"] + 1:
+            if f_idx > blocs[-1]["fin_idx"]:
+                blocs[-1]["fin_idx"] = f_idx
+                blocs[-1]["label_fin"] = (poste, domaine)
+            # sinon : cette expérience est entièrement contenue dans le bloc
+            # existant, elle ne change pas sa borne de fin
+        else:
+            blocs.append({
+                "debut_idx": d_idx, "fin_idx": f_idx,
+                "label_debut": (poste, domaine), "label_fin": (poste, domaine),
+            })
+
+    for i in range(len(blocs) - 1):
+        gap = blocs[i + 1]["debut_idx"] - blocs[i]["fin_idx"] - 1
+        if gap >= seuil_trou_mois:
+            poste_fin, domaine_fin = blocs[i]["label_fin"]
+            poste_debut, domaine_debut = blocs[i + 1]["label_debut"]
+            label_actuelle = _label_experience((None, None, poste_fin, domaine_fin))
+            label_suivante = _label_experience((None, None, poste_debut, domaine_debut))
+            alertes.append(
+                f"Trou de {gap} mois entre \"{label_actuelle}\" et \"{label_suivante}\""
+            )
+
+    return alertes
 
 
 # ---------------------------------------------------------------------------
@@ -476,6 +753,23 @@ Pour les langues :
   N'évalue pas de score toi-même pour les langues, contente-toi d'extraire
   le texte tel quel.
 
+Pour les expériences professionnelles (stages, emplois, alternances) :
+- Liste CHAQUE expérience séparément dans "experiences_pro"
+- N'inclus QUE du vrai travail professionnel : stage en entreprise, emploi,
+  alternance, consulting. N'inclus JAMAIS un rôle associatif, bénévole, un
+  bureau/poste dans un club étudiant ou une organisation (ex: "Community
+  manager" dans un chapitre IEEE, "Membre" ou "Responsable" d'une
+  association, d'un club robotique, d'un bureau des étudiants...) — même
+  si ce rôle a un titre qui ressemble à un poste et des dates précises.
+  Ces activités ne sont PAS de l'expérience professionnelle.
+- "date_debut" et "date_fin" : recopie le texte de date EXACTEMENT comme
+  écrit dans le CV (ex: "2021", "Jan 2021", "01/2021", "janvier 2022").
+  Si le poste est en cours, mets "present" pour "date_fin".
+  Ne calcule AUCUNE durée toi-même, ne convertis aucune date.
+- "domaine" : le domaine professionnel de CETTE expérience précise
+  (ex: "développement web", "réseaux", "marketing") — peut être différent
+  du domaine principal du candidat si un stage était hors-sujet.
+
 RAPPEL : pour les projets, certifications et langues, donne uniquement des
 évaluations INDIVIDUELLES. Ne calcule AUCUN score global, AUCUNE moyenne
 toi-même — l'agrégation finale est faite ensuite par le code Python.
@@ -509,6 +803,9 @@ Format attendu :
     "langues": ["...", "..."],
     "evaluation_langues": [
         {{"langue": "...", "niveau_brut": "tel qu'écrit dans le CV"}}
+    ],
+    "experiences_pro": [
+        {{"poste": "...", "domaine": "...", "date_debut": "tel qu'écrit", "date_fin": "tel qu'écrit ou present"}}
     ]
 }}
 
@@ -645,6 +942,12 @@ def extract_cv_data(text, provider="groq", model=None):
             parsed["score_qualite_globale_sur_10"] = quality["score_qualite_globale_sur_10"]
             parsed["details_score_qualite"] = quality["details_score"]
 
+            annees_exp, details_experiences = calculate_experience_annees(parsed)
+            parsed["annees_experience"] = annees_exp
+            parsed["experiences_pro"] = details_experiences  # enrichi de poids_pertinence par expérience
+
+            parsed["alertes_parcours"] = calculate_alertes_parcours(parsed)
+
             ponderes_100, ponderes_10 = calculate_domain_scores_ponderes(
                 parsed, quality["score_qualite_globale"]
             )
@@ -669,6 +972,24 @@ def extract_cv_data(text, provider="groq", model=None):
             parsed["scores_categories_ponderes_sur_10"] = convertir_en_liste_nested(parsed["scores_categories_ponderes_sur_10"])
 
 
+            # Construire un texte enrichi pour l'embedding : texte brut + champs structurés
+            # Cela garantit que TOUTES les technologies/langages/frameworks extraits par le LLM
+            # sont inclus dans le vecteur, même si le texte brut ne les mentionne pas tous
+            # explicitement (ex: profil full-stack avec React dans frameworks et Node.js
+            # dans technologies).
+            champs_enrichissement = []
+            for champ in ["technologies", "langages", "frameworks", "bases_de_donnees",
+                          "outils_devops", "certifications"]:
+                valeurs = parsed.get(champ, [])
+                if isinstance(valeurs, list) and valeurs:
+                    champs_enrichissement.append(", ".join(valeurs))
+            categ = parsed.get("categorie_principale", "")
+            if categ:
+                champs_enrichissement.append(categ)
+            texte_enrichi = text + "\n" + " | ".join(champs_enrichissement)
+
+            embedding = embedding_model.encode(texte_enrichi, normalize_embeddings=True)
+            parsed["embedding_cv"] = embedding.tolist()
             return parsed
 
         except json.JSONDecodeError as je:
@@ -749,7 +1070,7 @@ def extract_all_cvs(cvs, provider="groq", model=None):
         print(f"🤖 Extraction ({provider}) : {cv['filename']}")
         try:
             data = extract_cv_data_auto(cv["text"], provider=provider, model=model)
-            extracted.append({"filename": cv["filename"], "data": data, "provider": provider})
+            extracted.append({"filename": cv["filename"], "text": cv["text"], "data": data, "provider": provider})
             print(f"✅ Extrait : {cv['filename']}")
         except Exception as e:
             print(f"❌ Échec sur {cv['filename']} : {e}")

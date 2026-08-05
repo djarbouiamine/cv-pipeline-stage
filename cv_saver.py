@@ -75,6 +75,7 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
         "Technologies", "Projets", "Diplômes", "Certifications", "Langues",
         "Score qualité (/100)", "Score qualité (/10)", "Détail score qualité",
         "Domaines & pertinence (LLM)", "Domaines pondérés (score final)",
+        "Années d'expérience (pondérées)", "Alertes parcours",
     ]
 
     for col, header in enumerate(headers, 1):
@@ -84,7 +85,8 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
         cell.alignment = Alignment(horizontal="center")
         width = 40 if header in [
             "Détail score qualité", "Domaines & pertinence (LLM)",
-            "Domaines pondérés (score final)", "Technologies", "Projets"
+            "Domaines pondérés (score final)", "Technologies", "Projets",
+            "Alertes parcours",
         ] else 25
         ws.column_dimensions[cell.column_letter].width = width
 
@@ -121,6 +123,11 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
         ws.cell(row=row, column=20, value=format_scores_list(data.get("scores_categories")))
         ws.cell(row=row, column=21, value=format_scores_list(data.get("scores_categories_ponderes")))
 
+        # --- Expérience pondérée & alertes de parcours ---
+        ws.cell(row=row, column=22, value=data.get("annees_experience", ""))
+        alertes = data.get("alertes_parcours") or []
+        ws.cell(row=row, column=23, value=" | ".join(alertes) if alertes else "")
+
         if not data and result.get("error"):
             ws.cell(row=row, column=2, value=f"❌ ÉCHEC : {result['error']}")
 
@@ -132,11 +139,61 @@ def save_to_excel(results, output_path="output/cvs_data.xlsx"):
 if __name__ == "__main__":
     from cv_reader import read_all_cvs
     from cv_extractor import extract_all_cvs
+    from cv_deduplication import detect_duplicates
+    from cv_cache import CVCache, file_sha256
+    import os, json
 
-    cvs = read_all_cvs("cvs/")
-    results = extract_all_cvs(cvs)
+    # Load raw CV entries (filename + raw text)
+    raw_entries = read_all_cvs("cvs/")
 
-    save_to_json(results)
-    save_to_excel(results)
+    # Initialise cache (Postgres if env vars set, otherwise JSON fallback)
+    cache = CVCache()
+    processed_entries = []
+
+    for raw in raw_entries:
+        pdf_path = os.path.join("cvs", raw["filename"])
+        h = file_sha256(pdf_path)
+        cached = cache.get_by_hash(h)
+        if cached:
+            # Cache hit – reuse stored extraction result
+            processed_entries.append({
+                "filename": raw["filename"],
+                "data": cached.get("data"),
+                "text": cached.get("text", ""),
+                "hash": h,
+            })
+            continue
+        # Cache miss – run extraction and store result
+        extracted = extract_all_cvs([raw])
+        if not extracted:
+            continue
+        entry = extracted[0]
+        entry["hash"] = h
+        entry["source_path"] = pdf_path
+        # Insert into cache for future runs
+        cache.insert({
+            "hash": h,
+            "email": (entry.get("data", {}) or {}).get("email", "").strip().lower(),
+            "phone": (entry.get("data", {}) or {}).get("telephone", "").strip(),
+            "data": entry.get("data"),
+            "text": entry.get("text", ""),
+            "source_path": pdf_path,
+        })
+        processed_entries.append(entry)
+
+    # Deduplication (levels 1‑3)
+    unique_results, duplicate_report = detect_duplicates(processed_entries)
+
+    # Save duplicate report
+    if duplicate_report:
+        os.makedirs("output", exist_ok=True)
+        dup_path = os.path.join("output", "duplicates.json")
+        with open(dup_path, "w", encoding="utf-8") as f:
+            json.dump(duplicate_report, f, ensure_ascii=False, indent=2)
+        print(f"✅ Rapport des doublons sauvegardé : {dup_path}")
+
+    # Persist unique results
+    save_to_json(unique_results)
+    save_to_excel(unique_results)
 
     print("\n🎉 Terminé ! Fichiers dans le dossier output/")

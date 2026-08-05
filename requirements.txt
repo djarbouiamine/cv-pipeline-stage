@@ -1,0 +1,6 @@
+streamlit
+plotly
+elasticsearch
+sentence-transformers
+python-dotenv
+pdfminer.six

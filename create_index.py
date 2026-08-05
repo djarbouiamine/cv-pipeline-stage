@@ -46,7 +46,20 @@ MAPPING = {
             "langues": {"type": "keyword"},
             "score_qualite_globale": {"type": "float"},
             "score_qualite_globale_sur_10": {"type": "float"},
-            "filename": {"type": "keyword"},
+            "annees_experience": {"type": "float"},
+            "alertes_parcours": {"type": "text"},
+            "experiences_pro": {
+                "type": "nested",
+                "properties": {
+                    "poste": {"type": "text"},
+                    "domaine": {"type": "keyword"},
+                    "date_debut": {"type": "keyword"},
+                    "date_fin": {"type": "keyword"},
+                    "poids_pertinence": {"type": "float"}
+                }
+            },
+            "embedding_cv": {"type": "dense_vector", "dims": 384, "similarity": "cosine"},
+
         }
     }
 }
