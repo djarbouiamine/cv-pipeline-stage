@@ -1,6 +1,42 @@
+# --- Interface web ---
 streamlit
 plotly
+pandas
+
+# --- Elasticsearch ---
 elasticsearch
+
+# --- Lecture de PDF / OCR ---
+PyMuPDF          # import fitz
+pdfplumber
+pdf2image
+pytesseract
+Pillow           # import PIL
+opencv-python     # import cv2
+
+# --- Excel ---
+openpyxl
+
+# --- LLM providers ---
+groq
+mistralai
+google-genai         # from google import genai (cv_extractor.py)
+google-generativeai  # import google.generativeai (pages/3_Chatbot.py)
+requests             # appels HTTP directs à OpenRouter
+
+# --- Embeddings / normalisation domaines / dédoublonnage ---
 sentence-transformers
+numpy
+
+# --- Config ---
 python-dotenv
-pdfminer.six
+
+# --- PostgreSQL (optionnel, seulement si POSTGRES_* est configuré dans .env) ---
+psycopg2-binary
+
+# --- Note : pages/3_Chatbot.py importe "from openrouter import OpenRouter" ---
+# Ce package n'a pas d'équivalent pip officiel fiable identifié.
+# cv_extractor.py appelle OpenRouter directement via requests.post(),
+# ce qui fonctionne sans dépendance supplémentaire.
+# A vérifier : si cette ligne du chatbot est utilisée telle quelle, il faudra
+# soit trouver/installer le bon package, soit réécrire l'appel avec requests.

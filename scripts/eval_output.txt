@@ -1,0 +1,581 @@
+﻿python : Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate 
+limits and faster downloads.
+Au caractère C:\Users\NINJA\AppData\Local\Temp\ps-script-53cb13e4-b184-4eec-9435-f6e4e97c2702.ps1:88 : 50
++ ... ONIOENCODING='utf-8'; python scripts\evaluate_chatbot.py 2>&1 | Out-F ...
++                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Warning: You ar...ster downloads.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]
+Loading weights: 100%|ÔûêÔûêÔûêÔûêÔûêÔûêÔûêÔûêÔûêÔûê| 199/199 [00:00<00:00, 8755.82it/s]
+[1mBertModel LOAD REPORT[0m from: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+Key                     | Status     |  | 
+------------------------+------------+--+-
+embeddings.position_ids | UNEXPECTED |  | 
+
+[3mNotes:
+- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical 
+arch.[0m
+C:\mon_projet\scripts\evaluate_chatbot.py:151: DeprecationWarning: The 'timeout' parameter is deprecated in favor of 
+'request_timeout'
+  es = Elasticsearch(hosts=[host], timeout=15)
+­ƒôé 11 domaines de r├®f├®rence charg├®s depuis output/.domaines_reference.json
+=== Chatbot Evaluation ===
+CVs indexed: 11
+Categories: ['D├®veloppement Logiciel', 'Intelligence Artificielle', 'Embedded Systems', 'Cybers├®curit├®', 'Data Engineering', 'Ing├®nierie M├®canique']
+Candidates (11): ['Amine Jarboui', 'Bilel KHLIF', 'AHMED ABDELHEDI', 'Hayder Khouildi', 'Yesmine ZAYANI', 'Rim ZAYANI', 'Louati Oussema', 'WAJD CHTOUROU', 'Mohamed Baha Riahi', 'Hazem Bellili']...
+
+
+============================================================
+  SEMANTIC_SEARCH (10 questions)
+============================================================
+
+[ISSUE] Find the best AI candidate.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find an Embedded Systems engineer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Embedded Systems
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find a Computer Vision engineer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find an NLP specialist.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Find a Machine Learning engineer.
+  intent=cv | mode=semantic | docs=3
+  topic=Intelligence Artificielle
+  top: AHMED ABDELHEDI, Louati Oussema, Yesmine ZAYANI
+
+[ISSUE] Find an IoT engineer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=IoT & Embarqu├®
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find a Data Engineer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Data Engineering
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Find a Full-Stack developer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[ISSUE] Find a Backend developer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=D├®veloppement Logiciel
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find a Frontend developer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=D├®veloppement Logiciel
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+============================================================
+  SKILLS_SEARCH (15 questions)
+============================================================
+
+[ISSUE] Who knows Python?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows Java?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Who knows C++?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[ISSUE] Who knows SQL?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows TensorFlow?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows PyTorch?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows Docker?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows Kubernetes?
+  intent=cv | mode=semantic | docs=6
+  topic=Cloud & DevOps
+  top: Amine Jarboui, AHMED ABDELHEDI, Louati Oussema, Mohamed Baha Riahi, Bilel KHLIF
+  ÔÜá ROUTE_ERROR: bad operand type for unary -: 'NoneType'
+
+[ISSUE] Who knows Terraform?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows React?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows Angular?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows Spring Boot?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows Flutter?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows MongoDB?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Who knows PostgreSQL?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+============================================================
+  PROJECT_SEARCH (8 questions)
+============================================================
+
+[ISSUE] Find candidates who built AI projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find candidates with Computer Vision projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find candidates with NLP projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Find candidates with web development projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Find candidates with mobile app projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Find candidates with cybersecurity projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[ISSUE] Find candidates with embedded projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=IoT & Embarqu├®
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find candidates with cloud projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Cloud & DevOps
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+============================================================
+  RECRUITER (8 questions)
+============================================================
+
+[ISSUE] Who should I hire for an AI internship?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Recommend a Backend developer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=D├®veloppement Logiciel
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Recommend a DevOps engineer.
+  intent=cv | mode=semantic | docs=6
+  topic=Cloud & DevOps
+  top: Amine Jarboui, AHMED ABDELHEDI, Louati Oussema, Mohamed Baha Riahi, Bilel KHLIF
+  ÔÜá ROUTE_ERROR: bad operand type for unary -: 'NoneType'
+
+[OK] Recommend a Cybersecurity analyst.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[ISSUE] Recommend a Computer Vision engineer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Recommend an IoT engineer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=IoT & Embarqu├®
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Recommend someone for a startup.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Recommend the strongest overall candidate.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+============================================================
+  COMPARISON (8 questions)
+============================================================
+
+[OK] Compare Ahmed Abdelhedi and Louati Oussema.
+  intent=cv | mode=comparison | docs=2
+  top: AHMED ABDELHEDI, Louati Oussema
+
+[OK] Compare the top 3 AI candidates.
+  intent=cv | mode=classement | docs=3
+  topic=Intelligence Artificielle
+  top: AHMED ABDELHEDI, Yesmine ZAYANI, Louati Oussema
+
+[OK] Who is stronger in Python?
+  intent=general | mode=general | docs=0
+
+[ISSUE] Who has more AI projects?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Who has more certifications?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Who has more experience?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Which candidate has the broadest skill set?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Which profile is the most complete?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+============================================================
+  STATISTICS (10 questions)
+============================================================
+
+[ISSUE] How many AI candidates are there?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[ISSUE] How many Embedded candidates are there?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=IoT & Embarqu├®
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[ISSUE] How many candidates know Python?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  agg=count_python | stats=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[ISSUE] How many candidates know Docker?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  agg=count_named_skill | stats=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[ISSUE] Which technology appears most often?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  agg=top_technologies | stats=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[ISSUE] Which programming language is most common?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  agg=top_languages | stats=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[ISSUE] Which framework is the most common?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  agg=top_frameworks | stats=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[OK] What is the average quality score?
+  intent=cv | mode=stats | docs=11
+  top: Amine Jarboui, AHMED ABDELHEDI, Yesmine ZAYANI, WAJD CHTOUROU, Louati Oussema
+
+[ISSUE] What is the average years of experience?
+  intent=general | mode=general | docs=0
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+[ISSUE] Show the distribution of categories.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: stats question should be CV
+  ÔÜá STATS: unexpected mode general
+
+============================================================
+  RANKING (6 questions)
+============================================================
+
+[OK] Show the top 5 candidates.
+  intent=cv | mode=classement | docs=5
+  top: Amine Jarboui, AHMED ABDELHEDI, Yesmine ZAYANI, WAJD CHTOUROU, Louati Oussema
+
+[OK] Rank AI candidates by score.
+  intent=cv | mode=classement | docs=3
+  topic=Intelligence Artificielle
+  top: AHMED ABDELHEDI, Yesmine ZAYANI, Louati Oussema
+
+[OK] Rank candidates by experience.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Rank candidates by number of projects.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Rank candidates by certifications.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Show the highest-scoring candidate.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+============================================================
+  EDUCATION (6 questions)
+============================================================
+
+[OK] Who has a CCNA certification?
+  intent=cv | mode=semantic | docs=11
+  top: Slim Selmi, AHMED ABDELHEDI, Amine Jarboui, WAJD CHTOUROU, Louati Oussema
+
+[OK] Who has Red Hat certifications?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Who has machine learning certifications?
+  intent=cv | mode=semantic | docs=3
+  topic=Intelligence Artificielle
+  top: AHMED ABDELHEDI, Louati Oussema, Yesmine ZAYANI
+
+[OK] Which candidates studied at ENSI?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Which candidates studied at SUP'COM?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Which candidates have engineering degrees?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+============================================================
+  EDGE_CASES (10 questions)
+============================================================
+
+[ISSUE] Find an AWS-certified engineer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  mandatory=['exp├®rience AWS explicite'] | no_exact=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: edge case should be CV mode
+
+[ISSUE] Find an Azure expert.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find a GCP expert.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find a blockchain developer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  mandatory=['exp├®rience blockchain explicite'] | no_exact=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: edge case should be CV mode
+
+[ISSUE] Find a Rust developer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  mandatory=['comp├®tence Rust explicite'] | no_exact=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: edge case should be CV mode
+
+[OK] Find a Go developer.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] Find someone with 5 years of experience.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[ISSUE] Find someone who speaks Japanese.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  mandatory=['ma├«trise du japonais explicite'] | no_exact=False
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+  ÔÜá INTENT: edge case should be CV mode
+
+[OK] Find someone with a PhD.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[ISSUE] Find a senior DevOps engineer.
+  intent=cv | mode=semantic | docs=6
+  topic=Cloud & DevOps
+  top: Amine Jarboui, AHMED ABDELHEDI, Louati Oussema, Mohamed Baha Riahi, Bilel KHLIF
+  ÔÜá ROUTE_ERROR: bad operand type for unary -: 'NoneType'
+
+============================================================
+  MULTI_STEP (8 questions)
+============================================================
+
+[OK] Who is the best AI candidate with Python and PyTorch?
+  intent=general | mode=general | docs=0
+  topic=Intelligence Artificielle
+
+[ISSUE] Find an Embedded engineer who also knows AI.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=IoT & Embarqu├®
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Compare the best AI candidate with the best Cybersecurity candidate.
+  intent=cv | mode=ranking_desc | docs=11
+  topic=Intelligence Artificielle
+  top: Amine Jarboui, AHMED ABDELHEDI, Yesmine ZAYANI, WAJD CHTOUROU, Louati Oussema
+
+[ISSUE] Recommend the best Computer Vision intern with TensorFlow.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[ISSUE] Find candidates with Python but without Java.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+[OK] Which AI candidate has the highest score and the most projects?
+  intent=cv | mode=ranking_desc | docs=11
+  topic=Intelligence Artificielle
+  top: Amine Jarboui, AHMED ABDELHEDI, Yesmine ZAYANI, WAJD CHTOUROU, Louati Oussema
+
+[ISSUE] Show candidates with Docker and Kubernetes ranked by experience.
+  intent=cv | mode=semantic | docs=6
+  topic=Cloud & DevOps
+  top: Amine Jarboui, AHMED ABDELHEDI, Louati Oussema, Mohamed Baha Riahi, Bilel KHLIF
+  ÔÜá ROUTE_ERROR: bad operand type for unary -: 'NoneType'
+
+[ISSUE] Which candidate is best suited for an IoT startup?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=IoT & Embarqu├®
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+============================================================
+  GENERAL_CHAT (9 questions)
+============================================================
+
+[OK] What is Python?
+  intent=general | mode=general | docs=0
+
+[ISSUE] Explain machine learning.
+  intent=cv | mode=semantic | docs=3
+  topic=Intelligence Artificielle
+  top: AHMED ABDELHEDI, Louati Oussema, Yesmine ZAYANI
+  ÔÜá INTENT: general question misclassified as CV
+
+[OK] What is Docker?
+  intent=general | mode=general | docs=0
+
+[ISSUE] What is Kubernetes?
+  intent=cv | mode=semantic | docs=6
+  topic=Cloud & DevOps
+  top: Amine Jarboui, AHMED ABDELHEDI, Louati Oussema, Mohamed Baha Riahi, Bilel KHLIF
+  ÔÜá ROUTE_ERROR: bad operand type for unary -: 'NoneType'
+  ÔÜá INTENT: general question misclassified as CV
+
+[OK] Explain RAG.
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[OK] What is Elasticsearch?
+  intent=general | mode=general | docs=0
+
+[OK] Hello!
+  intent=general | mode=general | docs=0
+
+[OK] How are you?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+
+[ISSUE] Can you explain deep learning?
+  intent=ambiguousÔåÆgeneral_default | mode=general | docs=0
+  topic=Intelligence Artificielle
+  ÔÜá INTENT: likely CV question but heuristic returned ambiguous (defaults to general)
+
+
+============================================================
+SUMMARY
+============================================================
+Total questions: 98
+Total issues: 78
+
+Intent misrouting (53):
+  - [semantic_search] Find the best AI candidate.
+  - [semantic_search] Find an Embedded Systems engineer.
+  - [semantic_search] Find a Computer Vision engineer.
+  - [semantic_search] Find an NLP specialist.
+  - [semantic_search] Find an IoT engineer.
+  - [semantic_search] Find a Data Engineer.
+  - [semantic_search] Find a Backend developer.
+  - [semantic_search] Find a Frontend developer.
+  - [skills_search] Who knows Python?
+  - [skills_search] Who knows Java?
+  - [skills_search] Who knows SQL?
+  - [skills_search] Who knows TensorFlow?
+  - [skills_search] Who knows PyTorch?
+  - [skills_search] Who knows Docker?
+  - [skills_search] Who knows Terraform?
+  - [skills_search] Who knows React?
+  - [skills_search] Who knows Angular?
+  - [skills_search] Who knows Spring Boot?
+  - [skills_search] Who knows Flutter?
+  - [skills_search] Who knows MongoDB?
+  - [skills_search] Who knows PostgreSQL?
+  - [project_search] Find candidates who built AI projects.
+  - [project_search] Find candidates with Computer Vision projects.
+  - [project_search] Find candidates with NLP projects.
+  - [project_search] Find candidates with embedded projects.
+  - [project_search] Find candidates with cloud projects.
+  - [recruiter] Who should I hire for an AI internship?
+  - [recruiter] Recommend a Backend developer.
+  - [recruiter] Recommend a Computer Vision engineer.
+  - [recruiter] Recommend an IoT engineer.
+  - [comparison] Who has more AI projects?
+  - [statistics] How many AI candidates are there?
+  - [statistics] How many Embedded candidates are there?
+  - [statistics] How many candidates know Python?
+  - [statistics] How many candidates know Docker?
+  - [statistics] Which technology appears most often?
+  - [statistics] Which programming language is most common?
+  - [statistics] Which framework is the most common?
+  - [statistics] What is the average years of experience?
+  - [statistics] Show the distribution of categories.
+  - [edge_cases] Find an AWS-certified engineer.
+  - [edge_cases] Find an Azure expert.
+  - [edge_cases] Find a GCP expert.
+  - [edge_cases] Find a blockchain developer.
+  - [edge_cases] Find a Rust developer.
+  - [edge_cases] Find someone who speaks Japanese.
+  - [multi_step] Find an Embedded engineer who also knows AI.
+  - [multi_step] Recommend the best Computer Vision intern with TensorFlow.
+  - [multi_step] Find candidates with Python but without Java.
+  - [multi_step] Which candidate is best suited for an IoT startup?
+  - [general_chat] Explain machine learning.
+  - [general_chat] What is Kubernetes?
+  - [general_chat] Can you explain deep learning?
+
+Retrieval failures (5):
+  - [skills_search] Who knows Kubernetes?
+  - [recruiter] Recommend a DevOps engineer.
+  - [edge_cases] Find a senior DevOps engineer.
+  - [multi_step] Show candidates with Docker and Kubernetes ranked by experience.
+  - [general_chat] What is Kubernetes?
+
+Comparison failures (0):
+
+General chat correctly routed: 7/9
+
+Full report saved to C:\mon_projet\scripts\..\scripts\chatbot_eval_report.json

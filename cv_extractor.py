@@ -893,6 +893,56 @@ PROVIDER_FUNCTIONS = {
 }
 
 
+def call_llm_structured(prompt: str, provider_order: list = None) -> dict:
+    """
+    Appelle le premier provider disponible dans *provider_order* et retourne
+    un dict JSON parsé.
+
+    Conçu pour des appels courts (classification, routage) — PAS pour
+    l'extraction complète de CV (utiliser extract_cv_data() pour ça).
+
+    Comportement par provider :
+    - Quota / rate-limit (429)   → passe directement au provider suivant.
+    - Erreur transitoire (5xx)   → 2 retries avec backoff exponentiel.
+    - Autre erreur               → passe au provider suivant.
+    - Tous providers épuisés     → lève RuntimeError.
+
+    provider_order : liste ordonnée de providers à essayer.
+                     Défaut : ["groq", "openrouter", "mistral", "gemini"]
+    """
+    if provider_order is None:
+        provider_order = ["groq", "openrouter", "mistral", "gemini"]
+
+    last_error = None
+    for provider in provider_order:
+        if not AVAILABLE_KEYS.get(provider):
+            continue
+        call_fn = PROVIDER_FUNCTIONS[provider]
+        model = DEFAULT_MODELS[provider]
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                return call_fn(prompt, model)
+            except Exception as e:
+                last_error = e
+                if _is_quota_error(e):
+                    # Quota épuisé → inutile de réessayer, on passe au suivant
+                    break
+                elif _is_transient_server_error(e):
+                    if attempt < max_retries - 1:
+                        time.sleep((2 ** attempt) * 2.0)
+                        continue
+                    break
+                else:
+                    # Erreur non récupérable pour ce provider → suivant
+                    break
+
+    raise RuntimeError(
+        f"call_llm_structured : tous les providers ont échoué. "
+        f"Dernière erreur : {last_error}"
+    )
+
+
 def _is_quota_error(e):
     err_str = str(e).lower()
     if hasattr(e, "status_code") and getattr(e, "status_code") == 429:

@@ -1,0 +1,1200 @@
+[
+  {
+    "category": "semantic_search",
+    "question": "Find the best AI candidate.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find an Embedded Systems engineer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find a Computer Vision engineer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find an NLP specialist.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find a Machine Learning engineer.",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 3,
+    "doc_names": [
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Yesmine ZAYANI"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find an IoT engineer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find a Data Engineer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find a Full-Stack developer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find a Backend developer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "semantic_search",
+    "question": "Find a Frontend developer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Python?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Java?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows C++?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows SQL?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows TensorFlow?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows PyTorch?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Docker?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Kubernetes?",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 6,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Mohamed Baha Riahi",
+      "Bilel KHLIF"
+    ],
+    "no_exact_match": false,
+    "issues": [
+      "ROUTE_ERROR: bad operand type for unary -: 'NoneType'"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Terraform?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows React?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Angular?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Spring Boot?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows Flutter?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows MongoDB?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "skills_search",
+    "question": "Who knows PostgreSQL?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates who built AI projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates with Computer Vision projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates with NLP projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates with web development projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates with mobile app projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates with cybersecurity projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates with embedded projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "project_search",
+    "question": "Find candidates with cloud projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "recruiter",
+    "question": "Who should I hire for an AI internship?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "recruiter",
+    "question": "Recommend a Backend developer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "recruiter",
+    "question": "Recommend a DevOps engineer.",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 6,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Mohamed Baha Riahi",
+      "Bilel KHLIF"
+    ],
+    "no_exact_match": false,
+    "issues": [
+      "ROUTE_ERROR: bad operand type for unary -: 'NoneType'"
+    ]
+  },
+  {
+    "category": "recruiter",
+    "question": "Recommend a Cybersecurity analyst.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "recruiter",
+    "question": "Recommend a Computer Vision engineer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "recruiter",
+    "question": "Recommend an IoT engineer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "recruiter",
+    "question": "Recommend someone for a startup.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "recruiter",
+    "question": "Recommend the strongest overall candidate.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "comparison",
+    "question": "Compare Ahmed Abdelhedi and Louati Oussema.",
+    "intent": "cv",
+    "route_mode": "comparison",
+    "n_docs": 2,
+    "doc_names": [
+      "AHMED ABDELHEDI",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "comparison",
+    "question": "Compare the top 3 AI candidates.",
+    "intent": "cv",
+    "route_mode": "classement",
+    "n_docs": 3,
+    "doc_names": [
+      "AHMED ABDELHEDI",
+      "Yesmine ZAYANI",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "comparison",
+    "question": "Who is stronger in Python?",
+    "intent": "general",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "comparison",
+    "question": "Who has more AI projects?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "comparison",
+    "question": "Who has more certifications?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "comparison",
+    "question": "Who has more experience?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "comparison",
+    "question": "Which candidate has the broadest skill set?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "comparison",
+    "question": "Which profile is the most complete?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "statistics",
+    "question": "How many AI candidates are there?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "How many Embedded candidates are there?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "How many candidates know Python?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "How many candidates know Docker?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "Which technology appears most often?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "Which programming language is most common?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "Which framework is the most common?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "What is the average quality score?",
+    "intent": "cv",
+    "route_mode": "stats",
+    "n_docs": 11,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Yesmine ZAYANI",
+      "WAJD CHTOUROU",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "statistics",
+    "question": "What is the average years of experience?",
+    "intent": "general",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "statistics",
+    "question": "Show the distribution of categories.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: stats question should be CV",
+      "STATS: unexpected mode general"
+    ]
+  },
+  {
+    "category": "ranking",
+    "question": "Show the top 5 candidates.",
+    "intent": "cv",
+    "route_mode": "classement",
+    "n_docs": 5,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Yesmine ZAYANI",
+      "WAJD CHTOUROU",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "ranking",
+    "question": "Rank AI candidates by score.",
+    "intent": "cv",
+    "route_mode": "classement",
+    "n_docs": 3,
+    "doc_names": [
+      "AHMED ABDELHEDI",
+      "Yesmine ZAYANI",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "ranking",
+    "question": "Rank candidates by experience.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "ranking",
+    "question": "Rank candidates by number of projects.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "ranking",
+    "question": "Rank candidates by certifications.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "ranking",
+    "question": "Show the highest-scoring candidate.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "education",
+    "question": "Who has a CCNA certification?",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 11,
+    "doc_names": [
+      "Slim Selmi",
+      "AHMED ABDELHEDI",
+      "Amine Jarboui",
+      "WAJD CHTOUROU",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "education",
+    "question": "Who has Red Hat certifications?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "education",
+    "question": "Who has machine learning certifications?",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 3,
+    "doc_names": [
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Yesmine ZAYANI"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "education",
+    "question": "Which candidates studied at ENSI?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "education",
+    "question": "Which candidates studied at SUP'COM?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "education",
+    "question": "Which candidates have engineering degrees?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find an AWS-certified engineer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: edge case should be CV mode"
+    ]
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find an Azure expert.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find a GCP expert.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find a blockchain developer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: edge case should be CV mode"
+    ]
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find a Rust developer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: edge case should be CV mode"
+    ]
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find a Go developer.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find someone with 5 years of experience.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find someone who speaks Japanese.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)",
+      "INTENT: edge case should be CV mode"
+    ]
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find someone with a PhD.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "edge_cases",
+    "question": "Find a senior DevOps engineer.",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 6,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Mohamed Baha Riahi",
+      "Bilel KHLIF"
+    ],
+    "no_exact_match": false,
+    "issues": [
+      "ROUTE_ERROR: bad operand type for unary -: 'NoneType'"
+    ]
+  },
+  {
+    "category": "multi_step",
+    "question": "Who is the best AI candidate with Python and PyTorch?",
+    "intent": "general",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "multi_step",
+    "question": "Find an Embedded engineer who also knows AI.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "multi_step",
+    "question": "Compare the best AI candidate with the best Cybersecurity candidate.",
+    "intent": "cv",
+    "route_mode": "ranking_desc",
+    "n_docs": 11,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Yesmine ZAYANI",
+      "WAJD CHTOUROU",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "multi_step",
+    "question": "Recommend the best Computer Vision intern with TensorFlow.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "multi_step",
+    "question": "Find candidates with Python but without Java.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "multi_step",
+    "question": "Which AI candidate has the highest score and the most projects?",
+    "intent": "cv",
+    "route_mode": "ranking_desc",
+    "n_docs": 11,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Yesmine ZAYANI",
+      "WAJD CHTOUROU",
+      "Louati Oussema"
+    ],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "multi_step",
+    "question": "Show candidates with Docker and Kubernetes ranked by experience.",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 6,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Mohamed Baha Riahi",
+      "Bilel KHLIF"
+    ],
+    "no_exact_match": false,
+    "issues": [
+      "ROUTE_ERROR: bad operand type for unary -: 'NoneType'"
+    ]
+  },
+  {
+    "category": "multi_step",
+    "question": "Which candidate is best suited for an IoT startup?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  },
+  {
+    "category": "general_chat",
+    "question": "What is Python?",
+    "intent": "general",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "general_chat",
+    "question": "Explain machine learning.",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 3,
+    "doc_names": [
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Yesmine ZAYANI"
+    ],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: general question misclassified as CV"
+    ]
+  },
+  {
+    "category": "general_chat",
+    "question": "What is Docker?",
+    "intent": "general",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "general_chat",
+    "question": "What is Kubernetes?",
+    "intent": "cv",
+    "route_mode": "semantic",
+    "n_docs": 6,
+    "doc_names": [
+      "Amine Jarboui",
+      "AHMED ABDELHEDI",
+      "Louati Oussema",
+      "Mohamed Baha Riahi",
+      "Bilel KHLIF"
+    ],
+    "no_exact_match": false,
+    "issues": [
+      "ROUTE_ERROR: bad operand type for unary -: 'NoneType'",
+      "INTENT: general question misclassified as CV"
+    ]
+  },
+  {
+    "category": "general_chat",
+    "question": "Explain RAG.",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "general_chat",
+    "question": "What is Elasticsearch?",
+    "intent": "general",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "general_chat",
+    "question": "Hello!",
+    "intent": "general",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "general_chat",
+    "question": "How are you?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": []
+  },
+  {
+    "category": "general_chat",
+    "question": "Can you explain deep learning?",
+    "intent": "ambiguous→general_default",
+    "route_mode": "general",
+    "n_docs": 0,
+    "doc_names": [],
+    "no_exact_match": false,
+    "issues": [
+      "INTENT: likely CV question but heuristic returned ambiguous (defaults to general)"
+    ]
+  }
+]

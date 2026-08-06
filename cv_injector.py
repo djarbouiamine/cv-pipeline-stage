@@ -1,13 +1,7 @@
 import json
 from elasticsearch import Elasticsearch
 
-try:
-    from sentence_transformers import SentenceTransformer
-    embedding_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-    print("[OK] Modele d'embedding charge.")
-except Exception as e:
-    embedding_model = None
-    print(f"[WARN] Impossible de charger le modele d'embedding : {e}")
+from cv_extractor import embedding_model
 
 es = Elasticsearch("http://localhost:9200")
 
