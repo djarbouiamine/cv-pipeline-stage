@@ -1,5 +1,6 @@
 output/
 __pycache__/
 cvs/
+cvs_uploads/
 .env
 .venv/

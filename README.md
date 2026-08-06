@@ -17,27 +17,50 @@ l'évaluation qualitative par unité (voir section Anti-hallucination).
 | Module | Rôle |
 | :--- | :--- |
 | **`cv_reader.py`** | Lit les PDF avec 3 stratégies en cascade : texte brut (PyMuPDF) → colonnes (pdfplumber) → OCR (Tesseract, pour les CVs scannés/images). |
-| **`cv_extractor.py`** | Extraction LLM (4 fournisseurs) + tout le post-traitement déterministe : score de qualité pondéré, années d'expérience, alertes de parcours (trous/chevauchements), normalisation des noms de domaine par embeddings, scores de domaine pondérés (60 % pertinence LLM + 40 % qualité globale), calcul de l'embedding CV pour la recherche sémantique. |
+| **`cv_extractor.py`** | Extraction LLM (4 fournisseurs) + post-traitement déterministe : score de qualité pondéré, années d'expérience, alertes de parcours, normalisation des domaines par embeddings, scores de domaine pondérés (60 % pertinence LLM + 40 % qualité globale), embedding CV pour la recherche sémantique. |
 | **`cv_saver.py`** | Exporte en **JSON** (`output/cvs_data.json`) et **Excel** (`output/cvs_data.xlsx`). |
-| **`cv_comparator.py`** | Étude comparative des LLMs (succès, latence, complétude, justesse, pertinence classification) — partage le même prompt et les mêmes fonctions de scoring que `cv_extractor.py` pour une comparaison équitable. |
-| **`cv_deduplication.py`** | Détection de doublons à 3 niveaux : (1) hash SHA-256 du texte brut = doublon exact, (2) email/téléphone identique = même candidat, (3) similarité sémantique (cosine sur embeddings) ≥ seuil = doublon probable. |
+| **`cv_comparator.py`** | Étude comparative des LLMs (succès, latence, complétude, justesse, pertinence classification). |
+| **`cv_deduplication.py`** | Détection de doublons à 3 niveaux : (1) hash SHA-256 du texte brut, (2) email/téléphone identique, (3) similarité sémantique (cosine sur embeddings) ≥ seuil. |
 | **`cv_cache.py`** | Cache des extractions déjà faites, indexé par hash SHA-256 du fichier. Backend JSON par défaut, PostgreSQL si les variables `POSTGRES_*` sont renseignées. |
-| **`es_client.py`** | Client Elasticsearch centralisé pour l'app Streamlit (mis en cache via `@st.cache_resource`), avec repli sur un client factice si ES est injoignable (évite de crasher le Dashboard). |
-| **`create_index.py`** | Crée l'index Elasticsearch `cvs` avec le mapping complet (champs `nested` pour les scores par domaine et les expériences pro, `dense_vector` pour l'embedding). |
+| **`es_client.py`** | Client Elasticsearch centralisé pour l'app Streamlit (`@st.cache_resource`), avec repli sur un client factice si ES est injoignable. |
+| **`create_index.py`** | Crée l'index Elasticsearch `cvs` avec le mapping complet (`nested`, `dense_vector` pour l'embedding). |
 | **`cv_injector.py`** | Injecte en masse le JSON produit par `cv_saver.py` dans Elasticsearch. |
+
+### Module Chatbot (`chatbot/`)
+
+Logique métier extraite de la page Streamlit pour le routage, le ranking et les réponses recruteur :
+
+| Module | Rôle |
+| :--- | :--- |
+| **`intent.py`** | Classification de l'intention (comparaison, top N, stats, filtrage, sémantique…). |
+| **`category_resolver.py`** | Résolution des catégories/domaines mentionnés dans la question. |
+| **`mandatory_criteria.py`** | Détection des critères obligatoires (diplôme, langue, compétence…) et filtrage des CVs. |
+| **`recommendation_ranking.py`** | Classement des candidats pour une recommandation ciblée. |
+| **`final_ranking.py`** | Ranking final multi-critères après récupération ES. |
+| **`es_aggregations.py`** | Requêtes et agrégations Elasticsearch pour les questions statistiques. |
+| **`recruiter_helpers.py`** | Helpers pour formater les réponses orientées recruteur. |
+| **`llm_client.py`** | Client LLM dual-mode (conversation générale + RAG CV). |
+| **`system_prompt.py`** | Prompts système anti-hallucination pour le RAG. |
+| **`response_format.py`** | Instructions de format de réponse par type de question. |
 
 ### Application Streamlit (`app.py` + `pages/`)
 
 | Page | Rôle |
 | :--- | :--- |
 | **📊 Dashboard** (`pages/1_Dashboard.py`) | KPI et visualisations globales sur les CVs indexés. |
-| **🔎 Recherche** (`pages/2_Recherche.py`) | Filtrage avancé multi-critères (domaine, compétences techniques, diplômes, langues, score qualité, années d'expérience, expérience pro) avec agrégations Elasticsearch mises en cache et bouton de rafraîchissement. |
-| **💬 Chatbot RAG** (`pages/3_Chatbot.py`) | Assistant conversationnel : détecte l'intention de la question (comparaison, top N, statistiques, filtrage par catégorie...), récupère les CVs pertinents dans Elasticsearch (kNN sur l'embedding ou requêtes structurées), puis fait générer la réponse par un LLM **à partir des seuls documents récupérés**. |
-| **📝 Ajouter CV** (`pages/ajouter_cv.py`) | Upload PDF → extraction → vérification de doublon (3 niveaux) → preview → indexation avec un ID Elasticsearch stable (hash du fichier). |
+| **🔎 Recherche** (`pages/2_Recherche.py`) | Filtrage avancé multi-critères avec agrégations Elasticsearch mises en cache. |
+| **💬 Chatbot RAG** (`pages/3_Chatbot.py`) | Assistant dual-mode : conversation générale + RAG sur les CVs (kNN, requêtes structurées, comparaisons, stats, ranking recruteur). |
+| **📝 Ajouter CV** (`pages/4_Ajouter_CV.py`) | Upload PDF → extraction → vérification de doublon (3 niveaux) → preview → indexation avec ID stable (hash du fichier). |
+
+### Scripts utilitaires (`scripts/`)
+
+| Script | Rôle |
+| :--- | :--- |
+| **`evaluate_chatbot.py`** | Suite d'évaluation du routage et de la récupération du chatbot (sans Streamlit). |
 
 ### Infrastructure
 
-- **`docker-compose.yml`** : Elasticsearch 8.12 + Kibana 8.12, sécurité désactivée (`xpack.security.enabled=false`) — **pensé pour du développement local uniquement**, à ne jamais exposer tel quel sur un réseau public.
+- **`docker-compose.yml`** : Elasticsearch 8.12 + Kibana 8.12, sécurité désactivée — **développement local uniquement**.
 
 ---
 
@@ -48,14 +71,10 @@ Le LLM est utilisé **uniquement** pour de l'évaluation qualitative par unité
 finaux sont du Python déterministe** :
 
 - Score de qualité global = moyenne pondérée de 5 composantes (diplôme,
-  certifications, diversité technique, projets, langues), poids configurables
-  via `.env` et automatiquement normalisés à 100 %.
-- Score final par domaine = 60 % pertinence donnée par le LLM + 40 % score de
-  qualité global — jamais un score inventé tel quel par le LLM.
-- Années d'expérience et alertes de parcours (trous, chevauchements) :
-  calculées à partir des dates extraites, pas estimées par le LLM.
-- Détection de doublons : hash, égalité champ à champ, similarité cosinus —
-  aucune décision de doublon n'est laissée au LLM.
+  certifications, diversité technique, projets, langues).
+- Score final par domaine = 60 % pertinence LLM + 40 % score de qualité global.
+- Années d'expérience et alertes de parcours : calculées à partir des dates extraites.
+- Détection de doublons : hash, égalité champ à champ, similarité cosinus.
 
 ---
 
@@ -71,22 +90,22 @@ Exécutée sur **10 CVs réels**, avec **5 configurations LLM** :
 | **Gemini 2.5 Flash** | 80% | 15.89s | 88.2% | 100% | 100% | 2 | 10 |
 | **Gemini 2.5 Flash-Lite** | 40% | 21.82s | 89.7% | 100% | 100% | 6 | 10 |
 
-> 💡 Les modèles Gemini atteignent 100 % de justesse et de pertinence de
-> classification lors des appels réussis. Leurs taux de succès inférieurs
-> viennent uniquement des quotas du tier gratuit (`429 RESOURCE_EXHAUSTED`),
-> pas d'un défaut d'analyse.
+> Les modèles Gemini atteignent 100 % de justesse lors des appels réussis.
+> Les échecs viennent des quotas du tier gratuit (`429`), pas d'un défaut d'analyse.
 
 ---
 
 ## ⚙️ Installation et Configuration
 
 ### Prérequis
+
 - Python 3.10+
-- Tesseract OCR installé et accessible dans le PATH (pour l'OCR des CVs scannés)
-- Poppler (requis par `pdf2image` pour la conversion PDF → image)
-- Docker (pour Elasticsearch + Kibana)
+- Tesseract OCR dans le PATH (CVs scannés)
+- Poppler (requis par `pdf2image`)
+- Docker (Elasticsearch + Kibana)
 
 ### 1. Cloner le dépôt
+
 ```bash
 git clone https://github.com/djarbouiamine/cv-pipeline-stage.git
 cd cv-pipeline-stage
@@ -94,24 +113,29 @@ git checkout stage
 ```
 
 ### 2. Installer les dépendances Python
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 3. Lancer Elasticsearch + Kibana
+
 ```bash
 docker compose up -d
 ```
-Kibana est ensuite accessible sur http://localhost:5601, Elasticsearch sur
-http://localhost:9200.
+
+Kibana : http://localhost:5601 — Elasticsearch : http://localhost:9200
 
 ### 4. Créer l'index Elasticsearch
+
 ```bash
 python create_index.py
 ```
 
 ### 5. Configurer les variables d'environnement
+
 Créer un fichier `.env` à la racine :
+
 ```env
 # Au moins une clé LLM est requise
 GROQ_API_KEY=votre_cle_groq
@@ -119,34 +143,33 @@ GEMINI_API_KEY=votre_cle_gemini
 OPENROUTER_API_KEY=votre_cle_openrouter
 MISTRAL_API_KEY=votre_cle_mistral
 
-# Elasticsearch (optionnel, défauts = local sans auth)
+# Elasticsearch (optionnel)
 ELASTIC_HOST=http://localhost:9200
-# ELASTIC_USERNAME=
-# ELASTIC_PASSWORD=
 
-# Bascule automatique entre providers en cas de quota dépassé (optionnel)
+# Bascule automatique entre providers (optionnel)
 AUTO_FALLBACK=false
 FALLBACK_ORDER=groq,openrouter,mistral,gemini
 GROQ_MAX_AUTO_WAIT_S=1200
 
-# Poids du score de qualité — normalisés automatiquement à 100% (optionnel)
+# Poids du score de qualité (optionnel)
 QUALITY_WEIGHT_DIPLOME=25
 QUALITY_WEIGHT_CERTIFICATIONS=20
 QUALITY_WEIGHT_TECH=20
 QUALITY_WEIGHT_PROJETS=25
 QUALITY_WEIGHT_LANGUES=10
 
-# Seuil de similarité pour la détection de doublon niveau 3 (optionnel)
+# Seuil de similarité doublon niveau 3 (optionnel)
 DUPLICATE_SIMILARITY_THRESHOLD=0.90
 
-# Cache PostgreSQL au lieu du JSON local (optionnel — sinon fallback JSON auto)
+# Cache PostgreSQL (optionnel — sinon JSON local)
 # POSTGRES_HOST=
 # POSTGRES_PORT=
 # POSTGRES_DB=
 # POSTGRES_USER=
 # POSTGRES_PASSWORD=
 ```
-*(`.env` est ignoré par Git via `.gitignore`.)*
+
+*(`.env` et `cvs_uploads/` sont ignorés par Git.)*
 
 ---
 
@@ -154,27 +177,23 @@ DUPLICATE_SIMILARITY_THRESHOLD=0.90
 
 ### Pipeline en ligne de commande
 
-Extraire et classifier tous les CVs du dossier `cvs/` :
 ```bash
+# Extraire et classifier les CVs du dossier cvs/
 python cv_extractor.py
 python cv_extractor.py --provider gemini
-python cv_extractor.py --provider mistral --model mistral-medium-latest
-```
 
-Sauvegarder en JSON/Excel :
-```bash
+# Sauvegarder en JSON/Excel
 python cv_saver.py
-```
 
-Injecter en masse dans Elasticsearch :
-```bash
+# Injecter en masse dans Elasticsearch
 python cv_injector.py
-```
 
-Étude comparative des LLMs :
-```bash
+# Étude comparative des LLMs
 python cv_comparator.py
 python cv_comparator.py --provider groq --provider gemini
+
+# Évaluer le chatbot (routage + récupération)
+python scripts/evaluate_chatbot.py
 ```
 
 ### Application Streamlit
@@ -182,8 +201,8 @@ python cv_comparator.py --provider groq --provider gemini
 ```bash
 streamlit run app.py
 ```
-Donne accès aux 4 pages (Dashboard, Recherche, Chatbot RAG, Ajouter CV) via la
-barre de navigation latérale.
+
+Donne accès aux 4 pages via la barre de navigation latérale.
 
 ---
 
@@ -191,38 +210,46 @@ barre de navigation latérale.
 
 ```
 cv-pipeline-stage/
-├── app.py                     # Point d'entrée Streamlit
+├── app.py                      # Point d'entrée Streamlit
 ├── pages/
 │   ├── 1_Dashboard.py
 │   ├── 2_Recherche.py
 │   ├── 3_Chatbot.py
-│   └── ajouter_cv.py
-├── cv_reader.py                # Lecture et OCR des PDF
-├── cv_extractor.py             # Extraction LLM + scoring déterministe
-├── cv_saver.py                 # Export JSON / Excel
-├── cv_comparator.py            # Comparaison des LLMs
-├── cv_deduplication.py         # Détection de doublons (3 niveaux)
-├── cv_cache.py                 # Cache d'extraction (JSON ou PostgreSQL)
-├── es_client.py                # Client Elasticsearch pour Streamlit
-├── create_index.py             # Création du mapping ES
-├── cv_injector.py               # Injection en masse dans ES
-├── docker-compose.yml          # Elasticsearch + Kibana (local)
+│   └── 4_Ajouter_CV.py
+├── chatbot/                    # Logique RAG, intent, ranking recruteur
+│   ├── intent.py
+│   ├── category_resolver.py
+│   ├── mandatory_criteria.py
+│   ├── recommendation_ranking.py
+│   ├── final_ranking.py
+│   ├── es_aggregations.py
+│   ├── recruiter_helpers.py
+│   ├── llm_client.py
+│   ├── system_prompt.py
+│   └── response_format.py
+├── scripts/
+│   └── evaluate_chatbot.py
+├── cv_reader.py
+├── cv_extractor.py
+├── cv_saver.py
+├── cv_comparator.py
+├── cv_deduplication.py
+├── cv_cache.py
+├── es_client.py
+├── create_index.py
+├── cv_injector.py
+├── docker-compose.yml
 ├── requirements.txt
-├── cvs/                        # CVs PDF à analyser (non versionné)
-├── output/                     # JSON / Excel / CSV générés (non versionné)
-└── .env                        # Clés API et config (non versionné)
+├── cvs/                        # CVs PDF pipeline CLI (non versionné)
+├── cvs_uploads/                # CVs uploadés via l'app (non versionné)
+├── output/                     # JSON / Excel générés (non versionné)
+└── .env                        # Clés API (non versionné)
 ```
 
 ---
 
-## 🚧 Points de vigilance identifiés (à traiter)
+## 🚧 Points de vigilance
 
-- `cvs_uploads/` (CVs uploadés via l'app) doit être ajouté à `.gitignore` —
-  contient des documents personnels de candidats réels, à ne pas versionner.
-- `requirements.txt` doit être complété (PyMuPDF, pytesseract, opencv-python,
-  pdf2image, pdfplumber, groq, google-genai, requests, openpyxl, numpy,
-  psycopg2-binary en optionnel).
-- Harmoniser l'ID Elasticsearch entre `cv_injector.py` (injection en masse) et
-  `pages/ajouter_cv.py` (ajout unitaire) — ce dernier utilise déjà un hash
-  stable, à reporter dans `cv_injector.py` pour éviter les doublons d'index
-  entre les deux chemins d'ajout.
+- **`cvs_uploads/`** contient des documents personnels de candidats — ne jamais les committer (désormais dans `.gitignore`).
+- **`cv_injector.py`** utilise un ID numérique séquentiel (`0`, `1`, …) tandis que **`pages/4_Ajouter_CV.py`** utilise un hash stable du fichier. Harmoniser les deux chemins d'indexation pour éviter les doublons entre injection en masse et ajout unitaire.
+- **`pages/3_Chatbot.py`** importe `from openrouter import OpenRouter` — vérifier que le package est installé ou remplacer par un appel `requests` comme dans `cv_extractor.py`.
