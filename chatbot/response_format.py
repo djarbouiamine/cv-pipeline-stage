@@ -162,9 +162,17 @@ def build_semantic_answer_instructions(
     rejected: Optional[List[dict]] = None,
     search_process: Optional[List[str]] = None,
     interview_questions: Optional[List[str]] = None,
+    count_line: Optional[str] = None,
 ) -> str:
     criteria = detect_search_criteria(question)
     lines = [SEMANTIC_RESPONSE_INSTRUCTIONS.strip()]
+
+    if count_line:
+        lines.append(
+            f"\n[INTERNE] Comptage CVs CANONIQUE (utiliser EXACTEMENT cette formulation "
+            f"dans Search Summary ET nulle part ailleurs avec un autre chiffre) : "
+            f"{count_line}"
+        )
 
     if unverifiable_criteria:
         uv = ", ".join(unverifiable_criteria)
@@ -230,11 +238,11 @@ def build_semantic_answer_instructions(
             + "\n".join(f"{i+1}. {q}" for i, q in enumerate(interview_questions))
         )
 
-    if total_cvs is not None and n_docs < total_cvs:
+    if total_cvs is not None and n_docs < total_cvs and not count_line:
         lines.append(
             f"\n[INTERNE] {n_docs} CVs fournis sur {total_cvs} indexés — ne citer que ceux-ci."
         )
-    else:
+    elif not count_line:
         lines.append(f"\n[INTERNE] {n_docs} CV(s) dans le contexte.")
 
     return "\n".join(lines)

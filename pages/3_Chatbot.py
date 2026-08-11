@@ -99,6 +99,7 @@ from chatbot.recruiter_helpers import (
     compute_answer_confidence,
     build_search_process_lines,
     follow_up_suggestions,
+    format_cv_count_line,
 )
 
 # ---------------------------------------------------------------------------
@@ -678,6 +679,7 @@ def extract_top_n(question: str) -> int:
 def enrich_semantic_retrieval(
     question: str,
     docs: List[Dict],
+    total_indexed: Optional[int] = None,
 ) -> Tuple[List[Dict], Dict[str, Any]]:
     """Critères obligatoires, filtres recruteur, classement adéquation poste."""
     meta: Dict[str, Any] = {
@@ -687,6 +689,8 @@ def enrich_semantic_retrieval(
         "is_recommendation": False,
         "rejected": [],
         "query_skills": extract_query_skills(question),
+        "after_retrieval": len(docs),
+        "total_indexed": total_indexed,
         "returned": len(docs),
         "confidence_label": "",
         "confidence_pct": 0.0,
@@ -1298,6 +1302,7 @@ def build_prompt(question: str, docs: Optional[List[Dict]], stats: Optional[Dict
             rejected=semantic_meta.get("rejected"),
             search_process=semantic_meta.get("search_process"),
             interview_questions=semantic_meta.get("interview_questions"),
+            count_line=semantic_meta.get("count_line"),
         )
         if semantic_meta.get("unverifiable_criteria"):
             uv = ", ".join(semantic_meta["unverifiable_criteria"])
@@ -1335,7 +1340,13 @@ def build_prompt(question: str, docs: Optional[List[Dict]], stats: Optional[Dict
                 f"- {r.get('nom', '?')} : {r.get('reason', '')}" for r in rej[:10]
             )
         coverage_note = ""
-        if total_cvs is not None and docs is not None and len(docs) < total_cvs:
+        count_line = semantic_meta.get("count_line")
+        if count_line:
+            coverage_note = (
+                f"\n\n**Comptage CVs (formulation obligatoire pour Search Summary)** : "
+                f"{count_line}"
+            )
+        elif total_cvs is not None and docs is not None and len(docs) < total_cvs:
             coverage_note = (
                 f"\n\nNote : {len(docs)} CV(s) sur {total_cvs} indexés transmis "
                 f"(les plus pertinents pour cette recherche)."
@@ -1343,7 +1354,7 @@ def build_prompt(question: str, docs: Optional[List[Dict]], stats: Optional[Dict
         return (
             f"**Question** : {question}\n\n"
             f"{prefix}"
-            f"Voici les {len(docs)} CVs les plus pertinents pour cette question "
+            f"Voici les CVs retenus pour cette réponse "
             f"(déjà filtrés par thème si applicable) :\n\n"
             f"{sources}"
             f"{rejected_block}\n\n"
@@ -1475,8 +1486,9 @@ for msg in st.session_state.chat_history:
             st.caption(msg["mode_badge"])
         if msg.get("warning"):
             st.warning(msg["warning"])
+        if msg.get("trace_badge"):
+            st.markdown(msg["trace_badge"])
         if msg.get("sources_df") is not None and not msg["sources_df"].empty:
-            st.markdown(msg.get("trace_badge", ""))
             st.dataframe(msg["sources_df"], use_container_width=True, hide_index=True)
         if msg.get("stats"):
             with st.expander("📊 Voir les statistiques brutes", expanded=False):
@@ -1547,17 +1559,44 @@ if question and question.strip():
             semantic_meta = {}
 
         if mode != "stats" and docs:
+            total_cvs_count = get_total_cv_count(es)
             if mode == "semantic":
-                docs, semantic_meta = enrich_semantic_retrieval(question, docs)
+                docs, semantic_meta = enrich_semantic_retrieval(
+                    question, docs, total_indexed=total_cvs_count,
+                )
             conf_label, conf_pct, conf_reasons = compute_answer_confidence(
                 semantic_meta, docs, question,
             )
             semantic_meta["confidence_label"] = conf_label
             semantic_meta["confidence_pct"] = conf_pct
             semantic_meta["confidence_reasons"] = conf_reasons
+
+            count_line = format_cv_count_line(
+                total_cvs_count,
+                semantic_meta.get("after_retrieval") if mode == "semantic" else len(docs),
+                len(docs),
+            )
+            semantic_meta["count_line"] = count_line
             semantic_meta["search_process"] = build_search_process_lines(
                 question, semantic_meta, mode,
             )
+
+            if mode == "semantic":
+                mode_description = re.sub(
+                    r"\(\d+/\d+ CVs analysés\)",
+                    f"({count_line})",
+                    mode_description,
+                )
+            if count_line not in mode_description:
+                mode_description = f"{mode_description} · {count_line}"
+        elif mode == "stats":
+            total_cvs_count = get_total_cv_count(es)
+            n_stats = (stats or {}).get("total_cvs") or total_cvs_count
+            count_line = format_cv_count_line(total_cvs_count, n_stats, n_stats)
+            semantic_meta = semantic_meta if semantic_meta else {}
+            semantic_meta["count_line"] = count_line
+            if count_line not in mode_description:
+                mode_description = f"{mode_description} · {count_line}"
 
         if (not docs) and mode != "stats":
             answer = (
@@ -1589,11 +1628,15 @@ if question and question.strip():
                         f"Job Fit calculé, ou expérience). Vérifiez cette réponse avant de vous y fier."
                     )
 
-        n_analyses = len(docs) if docs else 0
+        count_line = semantic_meta.get("count_line") if semantic_meta else None
+        if not count_line and mode != "general":
+            total_fallback = get_total_cv_count(es)
+            n_docs = len(docs) if docs else 0
+            count_line = format_cv_count_line(total_fallback, n_docs, n_docs)
         trace_badge = (
-            f"🛡️ **Anti-hallucination** : {n_analyses} CV(s) analysé(s). "
+            f"🛡️ **Anti-hallucination** : {count_line}. "
             f"CV Quality = stored in database · Job Fit = computed for this query."
-        ) if n_analyses else ""
+        ) if count_line and mode != "general" else ""
 
     # --- Affichage ---
     with st.chat_message("assistant", avatar="🤖"):
@@ -1601,8 +1644,9 @@ if question and question.strip():
         st.markdown(answer)
         if warning_msg:
             st.warning(warning_msg)
-        if not sources_df.empty:
+        if trace_badge:
             st.markdown(trace_badge)
+        if not sources_df.empty:
             st.dataframe(sources_df, use_container_width=True, hide_index=True)
         if stats:
             with st.expander("📊 Voir les statistiques brutes", expanded=False):

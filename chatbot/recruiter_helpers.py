@@ -159,12 +159,40 @@ def compute_answer_confidence(
     return label, round(pct, 1), reasons[:5]
 
 
+def format_cv_count_line(
+    total_indexed: Optional[int],
+    after_retrieval: Optional[int],
+    final_count: int,
+) -> str:
+    """Chaîne canonique unique pour trace, Search Summary et footer anti-hallucination."""
+    if final_count <= 0 and (after_retrieval or 0) <= 0:
+        return "0 CV analysé"
+
+    if total_indexed is None:
+        return f"{final_count} CV(s) analysé(s)"
+
+    if after_retrieval is not None and after_retrieval != final_count:
+        return (
+            f"{after_retrieval} CV(s) filtré(s) → {final_count} retenu(s) "
+            f"(sur {total_indexed} indexé(s))"
+        )
+
+    if final_count == total_indexed:
+        return f"{final_count}/{total_indexed} CV(s) analysé(s)"
+
+    return f"{final_count}/{total_indexed} CV(s) analysé(s)"
+
+
 def build_search_process_lines(
     question: str,
     semantic_meta: Dict[str, Any],
     mode: str,
 ) -> List[str]:
     lines: List[str] = []
+    count_line = semantic_meta.get("count_line")
+    if count_line:
+        lines.append(f"Comptage CVs : {count_line}")
+
     from chatbot.response_format import detect_search_criteria
 
     for c in detect_search_criteria(question):
