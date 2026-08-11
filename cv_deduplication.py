@@ -203,11 +203,9 @@ def check_single_cv_duplicates(
     }
 
     # ── Niveau 1 — Hash exact ─────────────────────────────────
-    # Si le cache contient déjà ce hash, c'est un doublon exact.
     cached_entry = cache.get_by_hash(file_hash) if hasattr(cache, "get_by_hash") else None
     if cached_entry:
         result["level1_hit"] = True
-        return result
 
     # ── Niveau 2 — Email / téléphone ──────────────────────────
     email = (data.get("email") or "").strip().lower() if isinstance(data, dict) else ""
@@ -359,13 +357,6 @@ def assess_cv_indexability(
     can_index = True
     status = "ok"
     reasons: List[str] = []
-
-    if dup["level1_hit"]:
-        can_index = False
-        status = "duplicate"
-        reasons.append(
-            "Doublon exact : ce fichier a déjà été traité (même contenu, hash identique)."
-        )
 
     if es_status.get("already_indexed_by_hash"):
         can_index = False

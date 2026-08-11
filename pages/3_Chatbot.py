@@ -929,11 +929,26 @@ def route_question(question: str, es) -> Tuple[Optional[List[Dict]], Optional[Di
 
             if es_cat:
                 docs_filtered = [d for d in docs if d.get("categorie_principale") == es_cat]
-                if docs_filtered:
+                # CORRECTIF : filtre catégorie strict -> filtre souple.
+                # Avant, dès qu'AU MOINS 1 CV matchait la catégorie
+                # détectée, tout le reste du pool sémantique (souvent 13
+                # CVs) était jeté -> un candidat unique et parfois peu
+                # pertinent se retrouvait seul en lice par élimination,
+                # pas par mérite (ex: "data analyst" -> 1 seul CV analysé
+                # sur 13, alors que catégorie_principale n'est qu'UN des
+                # 2-3 domaines identifiés par le LLM pour chaque CV -- un
+                # bon candidat peut très bien avoir ce domaine en 2e ou 3e
+                # position et se faire exclure à tort).
+                # Seuil minimal avant d'appliquer le filtre strict : sinon
+                # on garde le pool complet et on laisse le reclassement
+                # (skills + sémantique générique) départager correctement.
+                if len(docs_filtered) >= 3:
                     docs = docs_filtered
                     topic_filtre = es_cat
                 else:
-                    docs, topic_filtre = filter_docs_by_topic(question, docs)
+                    for d in docs:
+                        d["_category_match"] = d.get("categorie_principale") == es_cat
+                    topic_filtre = None
             elif topic_label and not es_cat:
                 kw_docs = retrieve_by_topic_keywords(es, topic_fallback_keywords(topic_label))
                 if kw_docs:

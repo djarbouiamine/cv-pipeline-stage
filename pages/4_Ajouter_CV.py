@@ -21,6 +21,7 @@ from cv_extractor import extract_cv_data_auto, AVAILABLE_KEYS, FALLBACK_ORDER
 from cv_cache import CVCache, file_sha256
 from cv_saver import save_to_json, save_to_excel
 from cv_deduplication import assess_cv_indexability, DEFAULT_SIMILARITY_THRESHOLD
+from cv_removal import remove_cv
 
 st.set_page_config(page_title="Ajouter CV", layout="wide")
 st.title("📝 Ajouter un CV")
@@ -40,6 +41,7 @@ def reset_upload_state():
     st.session_state.extraction_result = None
     st.session_state.extraction_hash = None
     st.session_state.index_success = False
+    st.session_state.uploader_nonce = st.session_state.get("uploader_nonce", 0) + 1
 
 
 providers_dispo = [p for p in FALLBACK_ORDER if AVAILABLE_KEYS.get(p)]
@@ -49,7 +51,11 @@ if not providers_dispo:
 
 provider = st.selectbox("Fournisseur LLM", providers_dispo, index=0)
 
-uploaded_file = st.file_uploader("Dépose un CV (PDF)", type="pdf", key="cv_uploader")
+uploaded_file = st.file_uploader(
+    "Dépose un CV (PDF)",
+    type="pdf",
+    key=f"cv_uploader_{st.session_state.get('uploader_nonce', 0)}",
+)
 
 if uploaded_file is None:
     if st.session_state.get("index_success"):
@@ -139,7 +145,13 @@ assessment = assess_cv_indexability(
 )
 
 if assessment["level1_hit"]:
-    st.error("🚫 Niveau 1 (hash) : contenu identique à un CV déjà traité — doublon exact.")
+    if assessment.get("already_indexed_by_hash"):
+        st.success("✅ Niveau 1 (hash) : fichier déjà indexé dans le dashboard.")
+    else:
+        st.info(
+            "ℹ️ Niveau 1 (hash) : déjà extrait (cache) — "
+            "vous pouvez l'indexer dans le dashboard."
+        )
 else:
     st.success("✅ Niveau 1 (hash) : nouveau contenu.")
 
@@ -150,14 +162,21 @@ if level2_match:
 else:
     st.caption("Niveau 2 (email/téléphone) : aucun candidat correspondant dans le cache.")
 
-for sim, nom_autre in assessment.get("level3_top", []):
-    if sim >= DEFAULT_SIMILARITY_THRESHOLD:
-        st.warning(f"⚠️ Niveau 3 : similarité {sim:.2f} avec « {nom_autre} » (seuil {DEFAULT_SIMILARITY_THRESHOLD}).")
-    else:
-        st.caption(f"Niveau 3 : « {nom_autre} » — similarité {sim:.2f}")
+level3_top = assessment.get("level3_top", [])
+if level3_top:
+    for sim, nom_autre in level3_top:
+        if sim >= DEFAULT_SIMILARITY_THRESHOLD:
+            st.warning(
+                f"⚠️ Niveau 3 (similarité sémantique) : {sim:.2f} avec « {nom_autre} » "
+                f"(seuil {DEFAULT_SIMILARITY_THRESHOLD})."
+            )
+        else:
+            st.caption(f"Niveau 3 : « {nom_autre} » — similarité {sim:.2f}")
+else:
+    st.caption("Niveau 3 (similarité sémantique) : aucun CV similaire trouvé dans le cache.")
 
 if assessment.get("already_indexed_by_hash"):
-    st.error("🚫 Dashboard : ce fichier est déjà indexé dans Elasticsearch.")
+    st.success("✅ Dashboard : ce CV est déjà indexé.")
 elif assessment.get("es_identity_match"):
     src = assessment["es_identity_match"].get("_source") or {}
     st.error(
@@ -168,6 +187,48 @@ else:
     st.success("✅ Dashboard : ce CV n'est pas encore indexé.")
 
 st.divider()
+
+already_in_dashboard = assessment.get("already_indexed_by_hash")
+
+if already_in_dashboard:
+    st.session_state.index_success = True
+    st.success(
+        f"✅ **{data.get('nom', 'Ce CV')}** est déjà présent dans le dashboard. "
+        "Aucune action nécessaire."
+    )
+    st.info(
+        "Ce PDF a déjà été indexé (même fichier). Pour le réindexer avec de nouvelles données, "
+        "supprimez-le d'abord puis uploadez-le à nouveau."
+    )
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if st.button("➕ Ajouter un autre CV", use_container_width=True):
+            reset_upload_state()
+            st.rerun()
+    with col_b:
+        confirm_replace = st.checkbox("Je veux supprimer puis réindexer", key="confirm_replace_cv")
+        if st.button(
+            "🗑️ Supprimer du dashboard",
+            disabled=not confirm_replace,
+            use_container_width=True,
+            key="replace_cv_btn",
+        ):
+            source = {
+                "filename": result["filename"],
+                "email": data.get("email"),
+                "nom": data.get("nom"),
+            }
+            report = remove_cv(es, cache, file_hash, source)
+            reset_upload_state()
+            if report.get("success"):
+                st.success("✅ CV supprimé. Uploadez à nouveau le PDF pour réindexer.")
+            else:
+                st.error("❌ Suppression impossible. Vérifiez qu'Elasticsearch est démarré.")
+            st.rerun()
+    st.stop()
+
+if not assessment["can_index"]:
+    st.session_state.index_success = False
 
 if assessment["can_index"]:
     st.success("✅ Ce CV peut être ajouté : il n'est ni un doublon ni déjà présent dans le dashboard.")
@@ -219,6 +280,7 @@ if assessment["can_index"]:
                 es.index(index=INDEX_NAME, id=file_hash, document=doc)
 
                 st.session_state.index_success = True
+                st.session_state.uploader_nonce = st.session_state.get("uploader_nonce", 0) + 1
                 st.success(f"🎉 CV indexé avec succès dans '{INDEX_NAME}' (ID : {file_hash[:12]}...)")
                 st.balloons()
                 st.rerun()
@@ -228,7 +290,41 @@ else:
     st.button("✅ Valider et indexer", type="primary", disabled=True)
     st.caption("Corrigez le problème (autre PDF ou suppression du doublon existant) pour continuer.")
 
-if st.session_state.get("index_success"):
+    st.divider()
+    st.subheader("🗑️ Supprimer les données existantes")
+    st.warning(
+        "Supprime ce CV du cache, des uploads et du dashboard (si présent), "
+        "puis relance l'extraction depuis le début."
+    )
+    confirm_purge = st.checkbox("Je confirme la suppression", key="confirm_purge_cv")
+    if st.button(
+        "🗑️ Supprimer et recommencer",
+        disabled=not confirm_purge,
+        key="purge_cv_btn",
+    ):
+        source = {
+            "filename": result["filename"],
+            "email": data.get("email"),
+            "nom": data.get("nom"),
+        }
+        report = remove_cv(es, cache, file_hash, source)
+        reset_upload_state()
+        if report.get("success"):
+            parts = []
+            if report.get("elasticsearch"):
+                parts.append(f"dashboard ({report.get('elasticsearch_count', 1)})")
+            if report.get("cache"):
+                parts.append(f"cache ({report.get('cache_count', 1)})")
+            if report.get("pdf"):
+                parts.append("PDF cvs/uploads")
+            if report.get("output"):
+                parts.append("JSON/Excel")
+            st.success(f"✅ Supprimé : {', '.join(parts)}. Déposez à nouveau le PDF.")
+        else:
+            st.error("❌ Aucune donnée n'a pu être supprimée. Vérifiez qu'Elasticsearch est démarré.")
+        st.rerun()
+
+if st.session_state.get("index_success") and assessment["can_index"]:
     if st.button("➕ Ajouter un autre CV"):
         reset_upload_state()
         st.rerun()

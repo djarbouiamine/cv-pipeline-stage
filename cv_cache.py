@@ -185,6 +185,148 @@ class CVCache:
     def all_entries(self) -> List[Dict[str, Any]]:
         return self._pg_all_entries() if _USE_POSTGRES else self._json_all_entries()
 
+    def delete_by_hash(self, hash_val: str) -> bool:
+        """Remove a cached entry by its file hash."""
+        if _USE_POSTGRES:
+            with self.pg_conn.cursor() as cur:
+                cur.execute("DELETE FROM cv_cache WHERE hash = %s;", (hash_val,))
+                return cur.rowcount > 0
+        entry = self._hash_index.get(hash_val)
+        if not entry:
+            return False
+        self._json_cache.remove(entry)
+        del self._hash_index[hash_val]
+        self._json_save()
+        return True
+
+    def delete_by_email(self, email: str) -> bool:
+        """Remove cached entries matching an email (case-insensitive)."""
+        email = (email or "").strip().lower()
+        if not email:
+            return False
+        if _USE_POSTGRES:
+            with self.pg_conn.cursor() as cur:
+                cur.execute("DELETE FROM cv_cache WHERE lower(email) = %s;", (email,))
+                return cur.rowcount > 0
+        to_remove = [
+            e for e in self._json_cache
+            if (e.get("email") or "").strip().lower() == email
+        ]
+        if not to_remove:
+            return False
+        for entry in to_remove:
+            self._json_cache.remove(entry)
+            self._hash_index.pop(entry["hash"], None)
+        self._json_save()
+        return True
+
+    def delete_by_filename(self, filename: str) -> bool:
+        """Remove cached entries whose source_path or filename ends with *filename*."""
+        filename = os.path.basename((filename or "").replace("\\", "/"))
+        if not filename:
+            return False
+        if _USE_POSTGRES:
+            with self.pg_conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM cv_cache WHERE source_path LIKE %s;",
+                    (f"%{filename}",),
+                )
+                return cur.rowcount > 0
+        to_remove = []
+        for entry in self._json_cache:
+            source_path = (entry.get("source_path") or "").replace("\\", "/")
+            if source_path.endswith(filename):
+                to_remove.append(entry)
+        if not to_remove:
+            return False
+        for entry in to_remove:
+            self._json_cache.remove(entry)
+            self._hash_index.pop(entry["hash"], None)
+        self._json_save()
+        return True
+
+    def delete_matching(
+        self,
+        *,
+        doc_hash: str = "",
+        email: str = "",
+        nom: str = "",
+        phone: str = "",
+        filename: str = "",
+    ) -> List[Dict[str, Any]]:
+        """Remove all cache entries matching any identifier. Returns removed entries."""
+        doc_hash = (doc_hash or "").strip()
+        email = (email or "").strip().lower()
+        nom = (nom or "").strip().lower()
+        phone = (phone or "").strip()
+        filename = os.path.basename((filename or "").replace("\\", "/"))
+
+        if _USE_POSTGRES:
+            clauses = []
+            params: List[Any] = []
+            if doc_hash:
+                clauses.append("hash = %s")
+                params.append(doc_hash)
+            if email:
+                clauses.append("lower(email) = %s")
+                params.append(email)
+            if phone:
+                clauses.append("phone = %s")
+                params.append(phone)
+            if filename:
+                clauses.append("source_path LIKE %s")
+                params.append(f"%{filename}")
+            if not clauses:
+                return []
+            where = " OR ".join(clauses)
+            with self.pg_conn.cursor() as cur:
+                cur.execute(
+                    f"DELETE FROM cv_cache WHERE {where} RETURNING hash, email, phone, source_path;",
+                    tuple(params),
+                )
+                rows = cur.fetchall()
+            return [
+                {"hash": h, "email": e, "phone": p, "source_path": sp}
+                for h, e, p, sp in rows
+            ]
+
+        to_remove: List[Dict[str, Any]] = []
+        seen_hashes: Set[str] = set()
+        for entry in list(self._json_cache):
+            entry_hash = entry.get("hash") or ""
+            entry_email = (entry.get("email") or "").strip().lower()
+            entry_phone = (entry.get("phone") or "").strip()
+            entry_nom = ((entry.get("data") or {}).get("nom") or "").strip().lower()
+            source_path = (entry.get("source_path") or "").replace("\\", "/")
+            entry_filename = os.path.basename(source_path)
+
+            matched = False
+            if doc_hash and entry_hash == doc_hash:
+                matched = True
+            elif email and entry_email == email:
+                matched = True
+            elif nom and entry_nom == nom:
+                matched = True
+            elif phone and entry_phone == phone:
+                matched = True
+            elif filename and (
+                entry_filename == filename or source_path.endswith(filename)
+            ):
+                matched = True
+
+            if matched and entry_hash not in seen_hashes:
+                seen_hashes.add(entry_hash)
+                to_remove.append(entry)
+
+        if not to_remove:
+            return []
+
+        for entry in to_remove:
+            self._json_cache.remove(entry)
+            self._hash_index.pop(entry.get("hash"), None)
+        self._json_save()
+        return to_remove
+
     def prune(self, existing_hashes: Set[str]):
         """Delete cached rows whose hash is *not* in ``existing_hashes``.
         For JSON fallback the file is rewritten.

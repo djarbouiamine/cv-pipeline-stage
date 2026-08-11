@@ -17,6 +17,8 @@ import plotly.express as px
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from es_client import get_es_client
+from cv_cache import CVCache
+from cv_removal import remove_cv
 
 st.set_page_config(page_title="Dashboard", layout="wide")
 
@@ -47,11 +49,11 @@ def load_cvs_data() -> tuple[int, pd.DataFrame]:
         index="cvs",
         size=total,
         _source=[
-            "nom", "email", "categorie_principale",
+            "nom", "email", "telephone", "categorie_principale",
             "score_qualite_globale", "score_qualite_globale_sur_10",
             "annees_experience", "technologies",
             "langages", "frameworks", "bases_de_donnees", "outils_devops",
-            "alertes_parcours", "indexed_at",
+            "alertes_parcours", "indexed_at", "filename",
         ],
     )
 
@@ -67,6 +69,9 @@ def load_cvs_data() -> tuple[int, pd.DataFrame]:
             "Années exp.": src.get("annees_experience"),
             "Technologies": ", ".join(src.get("technologies", [])[:6]),
             "Langages": ", ".join(src.get("langages", [])[:5]),
+            "_doc_id": hit["_id"],
+            "_filename": src.get("filename", ""),
+            "_source_raw": src,
             "_competences_raw": (
                 (src.get("technologies") or [])
                 + (src.get("langages") or [])
@@ -200,6 +205,71 @@ if exp_min_global < exp_max_global:
 else:
     exp_min = exp_min_global
     st.sidebar.caption(f"Expérience : {exp_min_global:.1f} ans (valeur unique)")
+
+st.sidebar.divider()
+st.sidebar.subheader("🗑️ Supprimer un CV")
+
+delete_doc_ids = [""] + df["_doc_id"].astype(str).tolist()
+
+
+def _format_delete_option(doc_id: str) -> str:
+    if not doc_id:
+        return "— Choisir —"
+    match = df[df["_doc_id"].astype(str) == doc_id]
+    if match.empty:
+        return doc_id
+    row = match.iloc[0]
+    return f"{row['Nom']} ({row['Email']})"
+
+
+cv_to_delete_id = st.sidebar.selectbox(
+    "CV à supprimer",
+    options=delete_doc_ids,
+    format_func=_format_delete_option,
+    key="delete_cv_select",
+)
+confirm_delete = st.sidebar.checkbox(
+    "Je confirme la suppression définitive",
+    key="confirm_delete_cv",
+)
+
+if st.sidebar.button(
+    "🗑️ Supprimer",
+    type="primary",
+    disabled=not cv_to_delete_id or not confirm_delete,
+    use_container_width=True,
+):
+    matches = df[df["_doc_id"].astype(str) == cv_to_delete_id]
+    if matches.empty:
+        st.sidebar.error("CV introuvable — actualisez la page et réessayez.")
+    else:
+        row = matches.iloc[0]
+        cache = CVCache()
+        es = get_es_client()
+        report = remove_cv(
+            es=es,
+            cache=cache,
+            doc_id=str(row["_doc_id"]),
+            source=row["_source_raw"],
+        )
+        load_cvs_data.clear()
+        if report.get("success"):
+            details = []
+            if report.get("elasticsearch"):
+                details.append("dashboard")
+            if report.get("cache"):
+                details.append(f"cache ({report.get('cache_count', 1)})")
+            if report.get("pdf"):
+                details.append("PDF cvs/uploads")
+            if report.get("output"):
+                details.append("JSON/Excel")
+            extra = f" ({', '.join(details)})" if details else ""
+            st.toast(f"CV « {row['Nom']} » supprimé{extra}.", icon="✅")
+            st.session_state.pop("delete_cv_select", None)
+            st.session_state.pop("confirm_delete_cv", None)
+            st.rerun()
+        else:
+            st.sidebar.error("Échec : impossible de supprimer ce CV. Vérifiez qu'Elasticsearch est démarré.")
 
 df_filtre = df[
     df["Catégorie"].isin(categories_choisies)

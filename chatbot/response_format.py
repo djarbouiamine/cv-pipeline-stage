@@ -24,6 +24,7 @@ SEARCH_CRITERIA_PATTERNS = {
     ],
     "Cloud & DevOps": [
         "devops", "cloud", "kubernetes", "docker", "ci/cd", "terraform",
+        "aws", "azure", "gcp",
     ],
     "Développement Logiciel": [
         "développement", "developpement", "software", "full stack", "fullstack",
@@ -32,40 +33,31 @@ SEARCH_CRITERIA_PATTERNS = {
 }
 
 SEMANTIC_RESPONSE_INSTRUCTIONS = """
-MODE-SPECIFIC FORMAT (recommendations / profile search):
+[INTERNE — ne jamais recopier ni paraphraser dans la réponse utilisateur]
 
-Follow the OUTPUT FORMAT defined in the system prompt. Use medals 🥇🥈🥉 for top 3.
+Appliquer le format OUTPUT du system prompt. Médailles 🥇🥈🥉 pour le top 3.
+Virgule décimale française partout (ex. 0,7 an ; 84,2/100 ; 50,9 %).
 
-Sections finales (courtes, puces) :
+Sections finales visibles pour l'utilisateur (courtes) :
+- Search Summary : méthode + nombre de CVs analysés uniquement (info nouvelle).
+- Conclusion : 1–2 phrases, une seule fois, info NOUVELLE uniquement.
+  Si « Aucune correspondance exacte » est déjà en tête de réponse, la Conclusion
+  ne la reformule pas — indiquer plutôt les meilleurs candidats partiels ou la suite.
+- Vous pouvez aussi demander : 3–5 suggestions si pertinent.
 
-🔍 **Search Summary** — intent, method, CVs analyzed, ranking method (from context).
-
-🛡️ **Confidence:** High / Medium / Low (XX%) — **Reason:** …
-
-🚫 **Rejected profiles** — name + reason (do not recommend).
-
-**Conclusion** — 1–2 sentences max.
-
-**You can also ask:** — 3–5 follow-up suggestions from context.
+Ne pas inclure intent, confiance pipeline, ni trace technique sauf demande explicite.
 """
 
 COMPARISON_RESPONSE_INSTRUCTIONS = """
-COMPARISON FORMAT (mandatory):
+[INTERNE — ne jamais recopier dans la réponse utilisateur]
 
-1. Markdown table **Feature | Candidate A | Candidate B | …** covering:
-   Skills, Languages, Frameworks, Projects, Certifications, Experience,
-   Education, Strengths, Weaknesses, Risks, Best role.
-   Use ✅ / ✗ for key skills and ⭐ (1–5) for domain ratings based on
-   scores_categories / actual content — no invention.
-
-2. Label both scores when present:
-   **Job Fit:** X% (computed for this query) | **CV Quality:** Y/100 (stored in database)
-
-3. **Best for …** — one conclusion per axis (e.g. "Best for Computer Vision: …").
-
-4. End with **Overall recommendation.**
-
-Professional tone. Short evidence (project or technology cited).
+Tableau markdown Feature | Candidat A | Candidat B | …
+Lignes : Skills, Languages, Frameworks, Projects, Certifications, Experience,
+Education, Strengths, Weaknesses, Risks, Best role.
+Skills et Languages distincts — fusionner si identiques.
+Champ absent → "non renseigné".
+Scores : Job Fit X % | CV Quality Y/100 (virgule française).
+Terminer par Overall recommendation / Recommandation globale.
 """
 
 STATS_RESPONSE_INSTRUCTIONS = """
@@ -86,14 +78,14 @@ Do not invent charts not present in the data.
 """
 
 NO_EXACT_MATCH_INSTRUCTIONS = """
-NO EXACT MATCH — mandatory structure:
+[INTERNE — ne jamais recopier dans la réponse utilisateur]
 
-1. **No exact match found.** (or **Aucune correspondance exacte trouvée.**)
-2. Explain what is missing (mandatory criterion).
-3. **Closest matching profiles** — related skills only; do not claim they meet the mandatory criterion.
-4. **Rejected profiles** (name + reason) if listed in context.
-5. State clearly which required skills are missing.
-6. Prudent **Conclusion** for the recruiter.
+Aucune correspondance exacte : le dire une seule fois, en tête de réponse.
+Critères multiples : classer par nombre de critères partiellement satisfaits.
+Pas de candidat dans deux catégories contradictoires sans nuance explicite.
+Profils proches : compétences liées uniquement, sans prétendre au critère obligatoire.
+Conclusion finale : info NOUVELLE seulement (meilleurs partiels, action recruteur).
+Ne pas reformuler « aucune correspondance exacte » dans la Conclusion si déjà dit en haut.
 """
 
 
@@ -133,59 +125,62 @@ def build_semantic_answer_instructions(
     if no_exact_match and mandatory_label:
         lines.append(NO_EXACT_MATCH_INSTRUCTIONS.strip())
         lines.append(
-            f"\n**Critère obligatoire non satisfait par les CVs fournis** : {mandatory_label}"
+            f"\n[INTERNE] Critère obligatoire non satisfait dans les CVs fournis : {mandatory_label}"
         )
 
     if is_recommendation:
         lines.append(
-            "\n**Mode recommandation** : le classement utilise le **Job Fit Score** "
-            "(calculé pour cette recherche : 40% compétences, 25% sémantique, "
+            "\n[INTERNE] Classement par Job Fit (40% compétences, 25% sémantique, "
             "15% qualité CV, 10% expérience, 5% certifs, 5% projets). "
-            "Le **CV Quality Score** reste la note stockée en base — ne pas l'utiliser "
-            "seul pour classer les candidats."
+            "Ne pas recopier ces poids dans la réponse."
         )
 
     if criteria:
         crit_str = ", ".join(criteria)
         lines.append(
-            f"\n**Critères de recherche détectés** : {crit_str}\n"
-            f"Pour CHAQUE critère, ✅ preuve explicite ou ⚠️ absence explicite."
+            f"\n[INTERNE] Thèmes détectés : {crit_str}. "
+            f"Pour chaque thème : preuve explicite ou absence — ne pas citer cette ligne."
         )
 
     if confidence_label and confidence_pct is not None:
         reasons = " ; ".join(confidence_reasons or [])
         lines.append(
-            f"\n**Confiance à afficher** : {confidence_label} ({confidence_pct}%). "
-            f"Raisons suggérées : {reasons or 'voir contexte'}."
+            f"\n[INTERNE] Confiance {confidence_label} ({confidence_pct} %) — "
+            f"afficher seulement si pertinent ; raisons : {reasons or 'voir contexte'}. "
+            f"Ne pas exposer par défaut."
         )
 
     if search_process:
         lines.append(
-            "\n**Search Summary (recopy as bullets ✓):**\n"
+            "\n[INTERNE] Search Summary — reprendre UNIQUEMENT méthode + nb CVs "
+            "(ne pas reformuler le verdict) :\n"
             + "\n".join(f"- {s}" for s in search_process)
         )
 
     if rejected:
         rej_lines = [f"- {r.get('nom', '?')} : {r.get('reason', '')}" for r in rejected[:8]]
-        lines.append("\n**Profils écartés (ne pas recommander comme match exact)** :\n" + "\n".join(rej_lines))
+        lines.append(
+            "\n[INTERNE] Profils écartés (ne pas recommander comme match exact) :\n"
+            + "\n".join(rej_lines)
+        )
 
     if follow_ups:
         lines.append(
-            "\n**Suggestions de questions de suivi (section « Vous pouvez aussi demander »)** :\n"
+            "\n[INTERNE] Suggestions de suivi pour section « Vous pouvez aussi demander » :\n"
             + "\n".join(f"- {s}" for s in follow_ups)
         )
 
     if interview_questions:
         lines.append(
-            "\n**Questions d'entretien suggérées (si pertinent)** :\n"
+            "\n[INTERNE] Questions d'entretien possibles :\n"
             + "\n".join(f"{i+1}. {q}" for i, q in enumerate(interview_questions))
         )
 
     if total_cvs is not None and n_docs < total_cvs:
         lines.append(
-            f"\n({n_docs} CVs fournis sur {total_cvs} indexés — ne citer que ceux-ci.)"
+            f"\n[INTERNE] {n_docs} CVs fournis sur {total_cvs} indexés — ne citer que ceux-ci."
         )
     else:
-        lines.append(f"\n({n_docs} CV(s) dans le contexte.)")
+        lines.append(f"\n[INTERNE] {n_docs} CV(s) dans le contexte.")
 
     return "\n".join(lines)

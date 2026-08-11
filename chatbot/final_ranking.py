@@ -1,17 +1,98 @@
-"""Classement final par adéquation poste (pas seulement score qualité global)."""
+"""Classement final par adéquation poste (pas seulement score qualité global).
+
+CORRECTIF (généralisation à n'importe quelle question) :
+Avant, le poids "compétences" (40%, le plus gros du score) ne reconnaissait
+que ~35 technologies codées en dur dans KNOWN_SKILLS. Toute question qui
+n'utilisait aucun de ces mots exacts (ex: "chef de projet", "data analyst",
+"réseaux télécoms") faisait retomber le matching sur une valeur neutre pour
+TOUS les candidats -> le classement dépendait alors surtout de la qualité
+générale du CV, pas de sa pertinence réelle pour la question posée.
+
+Deux changements :
+1. Le poids sémantique (la vraie similarité vectorielle, qui comprend
+   n'importe quel vocabulaire) est remonté au-dessus du poids "compétences".
+2. Le matching de compétences est complété par un matching générique par
+   mots-clés qui compare directement les mots de la question au vocabulaire
+   structuré de chaque CV (technologies, langages, frameworks, certifs,
+   domaine) -- ça fonctionne pour n'importe quel terme, pas seulement ceux
+   de la liste fixe.
+"""
 
 from __future__ import annotations
 
 import re
 from typing import Dict, List, Optional, Tuple
 
-# Final Score = 40% skills + 25% semantic + 15% quality + 10% exp + 5% cert + 5% projects
-W_SKILL = 0.40
-W_SEMANTIC = 0.25
+# Final Score = 30% skills (liste connue + vocabulaire générique du CV)
+#             + 35% semantic (similarité vectorielle réelle)
+#             + 15% quality + 10% exp + 5% cert + 5% projects
+W_SKILL = 0.30
+W_SEMANTIC = 0.35
 W_QUALITY = 0.15
 W_EXPERIENCE = 0.10
 W_CERT = 0.05
 W_PROJECTS = 0.05
+
+# Mots trop courants pour être un signal de compétence/métier -> ignorés
+# par le matching générique (sinon "le", "avec", "pour"... compteraient
+# comme un "mot-clé" de la question et fausseraient le ratio).
+_STOPWORDS_FR_EN = {
+    "le", "la", "les", "un", "une", "des", "de", "du", "et", "ou", "à", "au",
+    "aux", "en", "dans", "sur", "pour", "avec", "sans", "qui", "que", "quoi",
+    "est", "sont", "être", "avoir", "ce", "cet", "cette", "ces", "je", "tu",
+    "il", "elle", "on", "nous", "vous", "ils", "elles", "mon", "ton", "son",
+    "trouve", "trouver", "cherche", "recherche", "recherché", "moi", "candidat",
+    "candidate", "candidats", "profil", "profils", "cv", "the", "and", "or",
+    "for", "with", "without", "who", "what", "is", "are", "be", "this",
+    "that", "these", "those", "find", "search", "looking", "profile", "me",
+    "un", "une", "meilleur", "meilleure", "bon", "bonne", "compétent",
+    "compétente", "experience", "expérience", "ans", "année", "années",
+}
+
+
+def _content_tokens(text: str) -> List[str]:
+    """Découpe un texte en mots significatifs (>=3 lettres, hors stopwords)."""
+    if not text:
+        return []
+    words = re.findall(r"[a-zA-Zà-ÿÀ-Ÿ0-9+#\.]{2,}", text.lower())
+    return [w for w in words if len(w) >= 3 and w not in _STOPWORDS_FR_EN]
+
+
+def _doc_vocab_tokens(doc: Dict) -> set:
+    """Rassemble tous les mots issus des champs structurés du CV
+    (technologies, langages, frameworks, outils, certifs, domaine) --
+    c'est le vocabulaire "officiel" extrait par le LLM pour ce candidat,
+    donc plus fiable que de chercher dans le texte brut.
+    """
+    vocab: set = set()
+    for field in ("technologies", "langages", "frameworks", "outils_devops",
+                  "certifications", "categorie_principale"):
+        v = doc.get(field)
+        if isinstance(v, list):
+            for item in v:
+                vocab.update(_content_tokens(str(item)))
+        elif v:
+            vocab.update(_content_tokens(str(v)))
+    return vocab
+
+
+def dynamic_match_ratio(question: str, doc: Dict) -> float:
+    """Proportion des mots-clés significatifs de la question retrouvés
+    dans le vocabulaire structuré du CV. Fonctionne pour N'IMPORTE QUEL
+    terme (pas seulement ceux de KNOWN_SKILLS), car il compare directement
+    les mots de la question au contenu réel de chaque CV.
+    """
+    q_tokens = set(_content_tokens(question))
+    if not q_tokens:
+        return 1.0
+    vocab = _doc_vocab_tokens(doc)
+    if not vocab:
+        return 0.0
+    hits = 0
+    for tok in q_tokens:
+        if tok in vocab or any(tok in v or v in tok for v in vocab):
+            hits += 1
+    return hits / len(q_tokens)
 
 KNOWN_SKILLS: List[Tuple[str, str, str]] = [
     # (pattern, label, category)
@@ -28,9 +109,12 @@ KNOWN_SKILLS: List[Tuple[str, str, str]] = [
     (r"\btypescript\b", "TypeScript", "lang"),
     (r"\bc\+\+\b", "C++", "lang"),
     (r"\bc#\b", "C#", "lang"),
-    (r"\breact\b", "React", "frontend"),
-    (r"\bangular\b", "Angular", "frontend"),
-    (r"\bvue\b", "Vue", "frontend"),
+    # Boundary assouplie (pas de \b final) : "React" doit aussi matcher
+    # "ReactJS" / "React.js" écrits collés, sinon ces CV étaient à tort
+    # comptés comme "ne maîtrise pas React".
+    (r"\breact(js|\.js|native)?\b", "React", "frontend"),
+    (r"\bangular(js)?\b", "Angular", "frontend"),
+    (r"\bvue(js|\.js)?\b", "Vue", "frontend"),
     (r"\bflutter\b", "Flutter", "mobile"),
     (r"\btensorflow\b", "TensorFlow", "ai"),
     (r"\bpytorch\b", "PyTorch", "ai"),
@@ -163,7 +247,18 @@ def compute_final_score(
     Retourne (score 0-100, composantes 0-100, forces, compétences manquantes).
     """
     skills = query_skills if query_skills is not None else extract_query_skills(question)
-    sm = skill_match_ratio(doc, skills) if skills else 1.0
+    dyn = dynamic_match_ratio(question, doc)
+    if skills:
+        # Compétence(s) reconnue(s) dans la liste connue : on combine le
+        # matching précis (regex ciblée) avec le matching générique, pour
+        # ne pas perdre le signal si la question mentionne AUSSI des
+        # termes hors liste (ex: "Python avec expérience en fintech").
+        sm = 0.6 * skill_match_ratio(doc, skills) + 0.4 * dyn
+    else:
+        # Rien dans la liste fixe -> on s'appuie entièrement sur le
+        # matching générique, qui fonctionne avec n'importe quel
+        # vocabulaire métier/technique présent dans les CV.
+        sm = dyn
     sem = _normalize_semantic(doc.get("_retrieval_score"), max_semantic)
     qual = _quality_norm(doc)
     exp = _experience_norm(doc)

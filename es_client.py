@@ -55,5 +55,9 @@ def get_es_client() -> Elasticsearch:
                 }
             def index(self, *args, **kwargs):
                 return {"result": "created"}
+            def delete(self, *args, **kwargs):
+                return {"result": "deleted"}
+            def exists(self, *args, **kwargs):
+                return False
         return DummyES()
     return es
