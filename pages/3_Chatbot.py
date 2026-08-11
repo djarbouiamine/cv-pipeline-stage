@@ -66,6 +66,7 @@ from chatbot.response_format import (
     build_semantic_answer_instructions,
     COMPARISON_RESPONSE_INSTRUCTIONS,
     STATS_RESPONSE_INSTRUCTIONS,
+    detect_unverifiable_criteria,
 )
 from chatbot.category_resolver import (
     detect_topic_in_question,
@@ -682,6 +683,7 @@ def enrich_semantic_retrieval(
     meta: Dict[str, Any] = {
         "no_exact_match": False,
         "mandatory_label": "",
+        "unverifiable_criteria": [],
         "is_recommendation": False,
         "rejected": [],
         "query_skills": extract_query_skills(question),
@@ -694,6 +696,19 @@ def enrich_semantic_retrieval(
     }
     filt = parse_recruiter_filters(question)
     docs = apply_recruiter_filters(docs, filt)
+
+    unverifiable = detect_unverifiable_criteria(question)
+    if unverifiable:
+        meta["unverifiable_criteria"] = unverifiable
+        meta["no_exact_match"] = True
+        if not meta["mandatory_label"]:
+            meta["mandatory_label"] = ", ".join(unverifiable)
+        for d in docs:
+            for key in (
+                "_match_score", "_match_components", "_match_strengths",
+                "_match_weaknesses", "_selection_reasons",
+            ):
+                d.pop(key, None)
 
     reqs = detect_mandatory_requirements(question)
     if reqs:
@@ -1274,6 +1289,7 @@ def build_prompt(question: str, docs: Optional[List[Dict]], stats: Optional[Dict
             total_cvs=total_cvs,
             no_exact_match=semantic_meta.get("no_exact_match", False),
             mandatory_label=semantic_meta.get("mandatory_label") or None,
+            unverifiable_criteria=semantic_meta.get("unverifiable_criteria") or None,
             is_recommendation=semantic_meta.get("is_recommendation", False),
             confidence_label=semantic_meta.get("confidence_label"),
             confidence_pct=semantic_meta.get("confidence_pct"),
@@ -1283,19 +1299,29 @@ def build_prompt(question: str, docs: Optional[List[Dict]], stats: Optional[Dict
             search_process=semantic_meta.get("search_process"),
             interview_questions=semantic_meta.get("interview_questions"),
         )
-        if semantic_meta.get("no_exact_match"):
-            sources = "\n---\n".join(
-                [
-                    format_cv_entry(i + 1, doc, include_text=True, query_skills=q_skills)
-                    for i, doc in enumerate(docs[:5])
-                ]
+        if semantic_meta.get("unverifiable_criteria"):
+            uv = ", ".join(semantic_meta["unverifiable_criteria"])
+            prefix = (
+                f"**IMPORTANT** : Le critère demandé ({uv}) n'est pas renseigné de façon "
+                f"fiabilisable dans les CVs indexés (pas de champ employeur actuel / salaire). "
+                f"Ne pas afficher de Job Fit % sur ce critère. "
+                f"CVs ci-dessous = similarité générale uniquement.\n\n"
             )
+        elif semantic_meta.get("no_exact_match"):
             prefix = (
                 "**IMPORTANT** : AUCUNE correspondance exacte pour le critère obligatoire. "
                 "CVs ci-dessous = profils les plus proches uniquement.\n\n"
             )
         else:
             prefix = ""
+        if semantic_meta.get("no_exact_match") or semantic_meta.get("unverifiable_criteria"):
+            sources = "\n---\n".join(
+                [
+                    format_cv_entry(i + 1, doc, include_text=True, query_skills=q_skills)
+                    for i, doc in enumerate(docs[:5])
+                ]
+            )
+        else:
             sources = "\n---\n".join(
                 [
                     format_cv_entry(i + 1, doc, include_text=True, query_skills=q_skills)

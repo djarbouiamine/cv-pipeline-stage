@@ -81,11 +81,11 @@ NO_EXACT_MATCH_INSTRUCTIONS = """
 [INTERNE — ne jamais recopier dans la réponse utilisateur]
 
 Aucune correspondance exacte : le dire une seule fois, en tête de réponse.
+Critères non vérifiables (employeur actuel, salaire, entreprise précise absente des CVs) :
+dire « Ce critère n'est pas renseigné dans les CVs indexés » — pas de Job Fit % trompeur.
 Critères multiples : classer par nombre de critères partiellement satisfaits.
-Pas de candidat dans deux catégories contradictoires sans nuance explicite.
-Profils proches : compétences liées uniquement, sans prétendre au critère obligatoire.
-Conclusion finale : info NOUVELLE seulement (meilleurs partiels, action recruteur).
-Ne pas reformuler « aucune correspondance exacte » dans la Conclusion si déjà dit en haut.
+Fusion conclusion : si l'absence de match est déjà en tête, la Conclusion n'ajoute QUE
+du nouveau (meilleurs partiels, action recruteur) — jamais reformuler le verdict.
 """
 
 
@@ -104,12 +104,56 @@ def detect_search_criteria(question: str) -> List[str]:
     return found
 
 
+UNVERIFIABLE_CRITERIA_PATTERNS: List[tuple[str, List[str]]] = [
+    (
+        "employeur actuel / entreprise précise",
+        [
+            r"employeur\s+actuel",
+            r"current\s+employer",
+            r"travaill(?:e|ant)\s+(?:actuellement\s+)?chez",
+            r"works?\s+at",
+            r"working\s+at",
+            r"employé\s+chez",
+            r"employee\s+at",
+            r"chez\s+google",
+            r"at\s+google\b",
+            r"chez\s+microsoft",
+            r"chez\s+amazon",
+            r"chez\s+meta",
+            r"chez\s+apple",
+            r"entreprise\s+(?:actuelle|précise)",
+        ],
+    ),
+    (
+        "salaire",
+        [r"\bsalaire\b", r"\bsalary\b", r"rémunération", r"remuneration"],
+    ),
+    (
+        "localisation exacte non indexée",
+        [r"habite\s+(?:à|a)\s+", r"vit\s+(?:à|a)\s+", r"based\s+in\s+(?!tunis)"],
+    ),
+]
+
+
+def detect_unverifiable_criteria(question: str) -> List[str]:
+    """Critères demandés sans champ CV fiable (employeur actuel, salaire, etc.)."""
+    q = question.lower()
+    found: List[str] = []
+    for label, patterns in UNVERIFIABLE_CRITERIA_PATTERNS:
+        for pattern in patterns:
+            if re.search(pattern, q, re.IGNORECASE):
+                found.append(label)
+                break
+    return found
+
+
 def build_semantic_answer_instructions(
     question: str,
     n_docs: int,
     total_cvs: int | None = None,
     no_exact_match: bool = False,
     mandatory_label: Optional[str] = None,
+    unverifiable_criteria: Optional[List[str]] = None,
     is_recommendation: bool = False,
     confidence_label: Optional[str] = None,
     confidence_pct: Optional[float] = None,
@@ -122,13 +166,23 @@ def build_semantic_answer_instructions(
     criteria = detect_search_criteria(question)
     lines = [SEMANTIC_RESPONSE_INSTRUCTIONS.strip()]
 
+    if unverifiable_criteria:
+        uv = ", ".join(unverifiable_criteria)
+        lines.append(
+            f"\n[INTERNE] Critère(s) NON vérifiable(s) dans les CVs indexés : {uv}. "
+            f"Commencer par : « Ce critère n'est pas renseigné dans les CVs indexés ». "
+            f"Ne PAS afficher de Job Fit % sur ce critère. "
+            f"Conclusion : info nouvelle uniquement (meilleurs partiels), pas reformuler l'absence de match."
+        )
+
     if no_exact_match and mandatory_label:
         lines.append(NO_EXACT_MATCH_INSTRUCTIONS.strip())
         lines.append(
-            f"\n[INTERNE] Critère obligatoire non satisfait dans les CVs fournis : {mandatory_label}"
+            f"\n[INTERNE] Critère non satisfait ou non vérifiable : {mandatory_label}. "
+            f"Si absent des champs CV → « non renseigné dans les CVs indexés », pas de Job Fit %."
         )
 
-    if is_recommendation:
+    if is_recommendation and not unverifiable_criteria:
         lines.append(
             "\n[INTERNE] Classement par Job Fit (40% compétences, 25% sémantique, "
             "15% qualité CV, 10% expérience, 5% certifs, 5% projets). "
