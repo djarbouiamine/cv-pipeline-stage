@@ -19,7 +19,7 @@ from cv_extractor import embedding_model
 # Constantes
 # ---------------------------------------------------------------------------
 
-DEFAULT_SIMILARITY_THRESHOLD = 0.85
+DEFAULT_SIMILARITY_THRESHOLD = 0.90
 UPDATE_SIMILARITY_THRESHOLD = 0.98
 
 

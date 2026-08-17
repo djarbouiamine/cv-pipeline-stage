@@ -129,17 +129,39 @@ if st.session_state.extraction_result is None:
 result = st.session_state.extraction_result
 data = result["data"]
 
-st.subheader("Aperçu de l'extraction")
+# ── Apercu extraction ──────────────────────────────────────────────────────
+st.markdown("""
+<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
+border-radius:14px;padding:1.1rem 1.5rem;margin:0.8rem 0">
+  <p style="color:rgba(255,255,255,0.5);font-size:0.72rem;font-weight:600;
+  letter-spacing:.8px;text-transform:uppercase;margin:0 0 0.6rem">Aperçu de l'extraction</p>
+</div>
+""", unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Nom", data.get("nom", "—"))
-col2.metric("Catégorie principale", data.get("categorie_principale", "—"))
-col3.metric("Score qualité", f"{data.get('score_qualite_globale', '—')}/100")
+col1.metric("NOM", data.get("nom", "—"))
+col2.metric("CATÉGORIE PRINCIPALE", data.get("categorie_principale", "—"))
+score_val = data.get('score_qualite_globale', '')
+col3.metric("SCORE QUALITÉ", f"{score_val}/100" if score_val != '' else "—")
 
-with st.expander("📄 Voir le JSON complet extrait"):
+# Toggle JSON (sans st.expander)
+if "show_json_4" not in st.session_state:
+    st.session_state.show_json_4 = False
+col_j, _ = st.columns([1, 6])
+with col_j:
+    lbl = "📄 Voir JSON" if not st.session_state.show_json_4 else "📄 Masquer JSON"
+    if st.button(lbl, key="toggle_json_cv4"):
+        st.session_state.show_json_4 = not st.session_state.show_json_4
+if st.session_state.show_json_4:
     st.json(data)
 
-st.subheader("🔍 Vérification avant indexation")
+st.markdown("""
+<div style="background:rgba(79,172,254,0.07);border-left:4px solid #4facfe;
+border-radius:0 10px 10px 0;padding:0.8rem 1.2rem;margin:0.8rem 0">
+  <span style="color:#4facfe;font-weight:700;font-size:0.9rem">🔍 Vérification avant indexation</span>
+</div>
+""", unsafe_allow_html=True)
+
 
 assessment = assess_cv_indexability(
     text=result["text"],
