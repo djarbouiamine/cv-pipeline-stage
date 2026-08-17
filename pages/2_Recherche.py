@@ -400,34 +400,78 @@ def executer_recherche(
 
 
 # ---------------------------------------------------------------------------
-# Affichage d'un CV dans un expander
-# ---------------------------------------------------------------------------
+def _score_color(score):
+    if score is None: return "#666"
+    if score >= 70: return "#43e97b"
+    if score >= 50: return "#f6d365"
+    return "#fa709a"
+
 
 def afficher_cv(doc: Dict, rang: int):
-    """Affiche un CV dans un st.expander avec tous les détails disponibles."""
+    """Affiche un CV dans une carte stylise avec toggle expand/collapse."""
     nom = doc.get("nom", "Inconnu")
     categ = doc.get("categorie_principale", "—")
     score = doc.get("score_qualite_globale")
-    score_10 = doc.get("score_qualite_globale_sur_10")
     exp = doc.get("annees_experience")
 
-    # En-tête de l'expander : nom + infos clés
     score_str = f"{score:.1f}/100" if score is not None else "—"
-    exp_str = f"{exp:.1f} ans" if exp is not None else "—"
-    header = f"**{rang}. {nom}** — {categ} — Score : {score_str} — Exp. : {exp_str}"
+    exp_str   = f"{exp:.1f} ans" if exp is not None else "—"
+    color     = _score_color(score)
+    key       = f"cv_open_{rang}_{nom}"
 
-    with st.expander(header, expanded=False):
-        # ── Infos de contact ──
+    if key not in st.session_state:
+        st.session_state[key] = False
+
+    # ── Header card (toujours visible) ─────────────────────────────────────
+    st.markdown(f"""
+<div style="
+  background:linear-gradient(145deg,#1a1f2e,#1e2535);
+  border:1px solid rgba(255,255,255,0.07);
+  border-left:4px solid {color};
+  border-radius:12px;
+  padding:0.9rem 1.2rem;
+  margin-bottom:0.4rem;
+  display:flex;
+  align-items:center;
+  gap:1rem;
+">
+  <span style="
+    background:rgba(255,255,255,0.06);
+    border-radius:50%;
+    width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;color:#aaa;font-size:0.8rem;flex-shrink:0;
+  ">{rang}</span>
+  <div style="flex:1">
+    <span style="color:#fff;font-weight:700;font-size:1rem">{nom}</span>
+    <span style="color:rgba(255,255,255,0.45);font-size:0.82rem;margin-left:0.8rem">{categ}</span>
+  </div>
+  <span style="color:{color};font-weight:700;font-size:0.9rem">{score_str}</span>
+  <span style="color:rgba(255,255,255,0.4);font-size:0.82rem;margin-left:0.8rem">Exp: {exp_str}</span>
+</div>
+""", unsafe_allow_html=True)
+
+    col_btn, _ = st.columns([1, 8])
+    with col_btn:
+        label = "▼ Détails" if not st.session_state[key] else "▲ Fermer"
+        if st.button(label, key=f"btn_{key}", use_container_width=False):
+            st.session_state[key] = not st.session_state[key]
+
+    if not st.session_state[key]:
+        return
+
+    # ── Détails (expandés) ─────────────────────────────────────────────────
+    with st.container():
+        st.markdown('<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:1rem">', unsafe_allow_html=True)
+
+        # Contact
         col1, col2, col3 = st.columns(3)
         with col1:
-            email = doc.get("email", "—")
-            st.markdown(f"📧 **Email** : {email}")
+            st.markdown(f"📧 **Email** : {doc.get('email','—')}")
         with col2:
-            tel = doc.get("telephone", "—")
-            st.markdown(f"📞 **Téléphone** : {tel or '—'}")
+            st.markdown(f"📞 **Tél** : {doc.get('telephone','—') or '—'}")
         with col3:
-            loc = doc.get("localisation")
-            st.markdown(f"📍 **Localisation** : {loc or '—'}")
+            st.markdown(f"📍 **Lieu** : {doc.get('localisation','—') or '—'}")
 
         linkedin = doc.get("linkedin")
         if linkedin:
@@ -435,18 +479,20 @@ def afficher_cv(doc: Dict, rang: int):
 
         st.divider()
 
-        # ── Scores ──
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
+        # Scores KPI
+        score_10 = doc.get("score_qualite_globale_sur_10")
+        c1, c2, c3 = st.columns(3)
+        with c1:
             if score is not None:
-                st.metric("Score qualité globale", f"{score:.1f}/100")
+                st.metric("Score qualité", f"{score:.1f}/100")
+        with c2:
             if score_10 is not None:
-                st.metric("Score qualité /10", f"{score_10:.1f}/10")
-        with col_s2:
+                st.metric("Score /10", f"{score_10:.1f}/10")
+        with c3:
             if exp is not None:
-                st.metric("Années d'expérience", f"{exp:.1f}")
+                st.metric("Expérience", f"{exp:.1f} ans")
 
-        # Top 3 domaines (champs à plat)
+        # Top domaines
         domaines_top = []
         for i in range(1, 4):
             d = doc.get(f"domaine_{i}")
@@ -458,67 +504,66 @@ def afficher_cv(doc: Dict, rang: int):
 
         st.divider()
 
-        # ── Compétences techniques ──
+        # Compétences
         for label, field in CHAMPS_KEYWORD_MULTISELECT.items():
             valeurs = doc.get(field, [])
             if isinstance(valeurs, list) and valeurs:
-                st.markdown(f"🛠️ **{label}** : {', '.join(valeurs)}")
+                tags = " ".join(f'<span style="background:rgba(79,172,254,0.12);color:#4facfe;border:1px solid rgba(79,172,254,0.25);border-radius:5px;padding:0.1rem 0.5rem;font-size:0.75rem;margin:0.1rem;display:inline-block">{v}</span>' for v in valeurs)
+                st.markdown(f"**🛠️ {label}** :", unsafe_allow_html=False)
+                st.markdown(tags, unsafe_allow_html=True)
 
-        # ── Diplômes et certifications ──
+        # Diplômes
         diplomes = doc.get("diplomes")
         if diplomes:
-            if isinstance(diplomes, list):
-                diplomes = " | ".join(diplomes)
+            if isinstance(diplomes, list): diplomes = " | ".join(diplomes)
             st.markdown(f"🎓 **Diplômes** : {diplomes}")
 
-        certifications = doc.get("certifications")
-        if certifications:
-            if isinstance(certifications, list):
-                certifications = " | ".join(certifications)
-            st.markdown(f"📜 **Certifications** : {certifications}")
+        certifs = doc.get("certifications")
+        if certifs:
+            if isinstance(certifs, list): certifs = " | ".join(certifs)
+            st.markdown(f"📜 **Certifications** : {certifs}")
 
-        # ── Projets ──
+        # Projets
         projets = doc.get("projets")
         if projets:
-            if isinstance(projets, list):
-                projets = " | ".join(projets)
+            if isinstance(projets, list): projets = " | ".join(projets)
             st.markdown(f"📁 **Projets** : {projets}")
 
-        # ── Expériences professionnelles (nested) ──
+        # Expériences
         experiences = doc.get("experiences_pro", [])
         if isinstance(experiences, list) and experiences:
             st.divider()
             st.markdown("💼 **Expériences professionnelles** :")
             for xp in experiences:
-                poste = xp.get("poste", "—")
-                domaine_xp = xp.get("domaine", "")
-                debut = xp.get("date_debut", "")
-                fin = xp.get("date_fin", "")
-                poids = xp.get("poids_pertinence")
-                periode = f"{debut} → {fin}" if debut or fin else ""
+                poste  = xp.get("poste", "—")
+                dom_xp = xp.get("domaine", "")
+                debut  = xp.get("date_debut", "")
+                fin    = xp.get("date_fin", "")
+                poids  = xp.get("poids_pertinence")
+                periode   = f"{debut} → {fin}" if debut or fin else ""
                 poids_str = f" (pertinence : {poids:.2f})" if poids is not None else ""
-                domaine_str = f" [{domaine_xp}]" if domaine_xp else ""
-                st.markdown(f"  • **{poste}**{domaine_str} — {periode}{poids_str}")
+                dom_str   = f" [{dom_xp}]" if dom_xp else ""
+                st.markdown(f"  • **{poste}**{dom_str} — {periode}{poids_str}")
 
-        # ── Alertes de parcours ──
+        # Alertes
         alertes = doc.get("alertes_parcours")
         if alertes:
-            if isinstance(alertes, list):
-                alertes = " | ".join(alertes)
+            if isinstance(alertes, list): alertes = " | ".join(alertes)
             st.warning(f"⚠️ **Alertes** : {alertes}")
 
-        # ── Scores par catégorie (nested) ──
+        # Scores par catégorie
         scores_cats = doc.get("scores_categories_ponderes_sur_10", [])
         if isinstance(scores_cats, list) and scores_cats:
             st.divider()
             st.markdown("📊 **Scores par catégorie (/10)** :")
-            # Trier par score décroissant pour lisibilité
-            scores_sorted = sorted(scores_cats, key=lambda x: x.get("score", 0), reverse=True)
-            for sc in scores_sorted:
+            for sc in sorted(scores_cats, key=lambda x: x.get("score", 0), reverse=True):
                 dom = sc.get("domaine", "—")
                 val = sc.get("score")
                 if val is not None:
                     st.markdown(f"  • {dom} : **{val:.1f}**/10")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 # ---------------------------------------------------------------------------

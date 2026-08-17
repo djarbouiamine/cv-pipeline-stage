@@ -817,19 +817,61 @@ Voici le CV :
 # ---------------------------------------------------------------------------
 # Appels bruts par provider — retournent un dict JSON déjà parsé.
 # ---------------------------------------------------------------------------
+
+def _parse_json_robust(content: str) -> dict:
+    """
+    Extrait un objet JSON depuis une réponse LLM qui peut contenir :
+    - Des blocs ```json ... ```
+    - Du texte avant/après le JSON
+    - Un JSON brut valide
+    Lève json.JSONDecodeError si aucun JSON valide trouvé.
+    """
+    if not content:
+        raise ValueError("Réponse LLM vide")
+
+    # 1. Tenter le parsing direct
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        pass
+
+    # 2. Extraire le bloc ```json ... ```
+    m = re.search(r"```json\s*([\s\S]*?)```", content, re.IGNORECASE)
+    if m:
+        try:
+            return json.loads(m.group(1).strip())
+        except json.JSONDecodeError:
+            pass
+
+    # 3. Extraire le premier { ... } ou [ ... ] de la réponse
+    m = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", content)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    raise json.JSONDecodeError(f"Aucun JSON valide trouvé dans la réponse: {content[:200]}", content, 0)
+
+
 def _call_groq(prompt, model):
     if not client_groq:
         raise RuntimeError("Client Groq non configuré (GROQ_API_KEY manquante)")
+    # openai/gpt-oss-20b ne supporte pas response_format json_object
+    # On passe l'instruction JSON dans le system prompt + extraction robuste
     completion = client_groq.chat.completions.create(
         model=model,
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": "Tu es un expert RH. Réponds UNIQUEMENT avec un JSON valide, sans texte autour."},
+            {"role": "user", "content": prompt}
+        ],
         temperature=0.2,
+        max_tokens=4096,
     )
     content = completion.choices[0].message.content.strip()
     print("=== RAW GROQ CONTENT ===")
-    print(repr(content[:1000]))
-    return json.loads(content)
+    print(repr(content[:500]))
+    return _parse_json_robust(content)
 
 
 def _call_mistral(prompt, model):
