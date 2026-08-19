@@ -45,8 +45,7 @@ pip install -r requirements.txt
 Copiez `.env.example` en `.env` et remplissez vos valeurs :
 
 ```bash
-copy .env.example .env   # Windows
-cp .env.example .env     # Linux / Mac
+copy .env.example .env
 ```
 
 Contenu du fichier **`.env`** :
@@ -66,9 +65,7 @@ FALLBACK_ORDER=groq,openrouter,mistral,gemini
 ELASTIC_HOST=http://localhost:9200
 
 # ── Score qualité — pondération (A+B+C+D+E = 100) ───────────────
-# score_final = diplome×A + certifications×B + tech×C + projets×D + langues×E
-#               ─────────────────────────────────────────────────────────────
-#                                     100
+# score_final = (diplome*A + certifications*B + tech*C + projets*D + langues*E) / 100
 QUALITY_WEIGHT_DIPLOME=25        # A — niveau académique
 QUALITY_WEIGHT_CERTIFICATIONS=20 # B — certifications (AWS, Azure, PMP…)
 QUALITY_WEIGHT_TECH=20           # C — diversité technique
@@ -76,11 +73,12 @@ QUALITY_WEIGHT_PROJETS=25        # D — projets réalisés
 QUALITY_WEIGHT_LANGUES=10        # E — langues maîtrisées
 
 # ── Seuils de détection de doublons (Niveau 3 — similarité) ─────
-DEDUP_SIMILARITY_THRESHOLD=0.90  # doublon rejeté si ≥ 90% similaire
-DEDUP_UPDATE_THRESHOLD=0.98      # mise à jour si ≥ 98% similaire
+# 0.90 = 2 CVs à 90% similaires → même personne (doublon rejeté)
+DEDUP_SIMILARITY_THRESHOLD=0.90  # augmenter = moins strict
+DEDUP_UPDATE_THRESHOLD=0.98      # seuil "mise à jour" (doit être > SIMILARITY)
 ```
 
-> 📄 Consultez **`.env.example`** pour la liste complète avec explications détaillées.
+> 📄 Consultez **`.env.example`** pour la liste complète des paramètres avec explications détaillées.
 
 ---
 
@@ -90,7 +88,7 @@ DEDUP_UPDATE_THRESHOLD=0.98      # mise à jour si ≥ 98% similaire
 docker compose up -d
 ```
 
-Attendez ~30 secondes, puis vérifiez :
+Attendez ~30 secondes, puis vérifiez que ces URLs répondent :
 - **Elasticsearch** → http://localhost:9200
 - **Kibana** → http://localhost:5601
 
@@ -129,19 +127,19 @@ streamlit run app.py
 
 ## 📱 Pages de l'application
 
-| Page | Description |
-|---|---|
-| 🧠 **Accueil** | Vue d'ensemble et navigation |
-| 📊 **Dashboard** | KPIs, scores, graphiques en temps réel depuis Elasticsearch |
-| 🔎 **Recherche** | Filtrage avancé multi-critères + **bouton supprimer CV** |
-| 💬 **Chatbot RAG** | Assistant IA conversationnel sur les CVs |
-| 📤 **Ajouter CV** | Upload PDF → extraction LLM → indexation |
+| Page | URL | Description |
+|---|---|---|
+| 🧠 **Accueil** | `/` | Vue d'ensemble et navigation |
+| 📊 **Dashboard** | `/1_Dashboard` | KPIs, scores, graphiques en temps réel depuis Elasticsearch |
+| 🔎 **Recherche** | `/2_Recherche` | Filtrage avancé multi-critères + **suppression CV** |
+| 💬 **Chatbot RAG** | `/3_Chatbot` | Assistant IA conversationnel sur les CVs |
+| 📤 **Ajouter CV** | `/4_Ajouter_CV` | Upload PDF → extraction LLM → indexation |
 
 ---
 
 ## 📂 Ajouter des CVs — 2 méthodes
 
-### Méthode A : Via l'interface Streamlit *(recommandée)*
+### Méthode A : Via l'interface Streamlit (recommandée)
 
 1. Ouvrez **http://localhost:8501**
 2. Cliquez sur **"Ajouter CV"**
@@ -153,7 +151,7 @@ streamlit run app.py
 ### Méthode B : Via le dossier `cvs/`
 
 1. Copiez vos fichiers PDF dans le dossier `cvs/`
-2. Relancez :
+2. Relancez simplement :
 
 ```bash
 python setup.py
@@ -165,9 +163,9 @@ python setup.py
 
 ## 🗑️ Supprimer un CV — méthode correcte
 
-> ⚠️ **N'utilisez jamais Kibana pour supprimer un CV** — Kibana ne peut supprimer que le document Elasticsearch. Le fichier PDF, `cv_cache.json` et `cvs_data.json` ne seraient **pas** mis à jour.
+> ⚠️ **N'utilisez jamais Kibana pour supprimer un CV.** Kibana ne supprime que le document Elasticsearch. Le fichier PDF, `cv_cache.json` et `cvs_data.json` ne seraient **pas** mis à jour — le CV réapparaîtrait au prochain `python setup.py`.
 
-### ✅ Via la page Recherche (recommandé)
+### ✅ Via la page Recherche Streamlit (recommandé)
 
 1. Ouvrez la page **Recherche** → http://localhost:8501/2_Recherche
 2. Trouvez le candidat → cliquez **▼ Détails**
@@ -180,37 +178,30 @@ Un seul clic supprime **partout** :
 |---|---|---|---|
 | ✅ | ✅ | ✅ | ✅ |
 
-### ✅ Nettoyage automatique via `python setup.py`
+### ✅ Nettoyage automatique des orphelins (PDFs supprimés du disque)
 
-Si vous avez supprimé des PDFs **manuellement du disque** (depuis l'explorateur Windows), relancez :
+Si vous avez supprimé des PDFs **manuellement** depuis l'explorateur, relancez :
 
 ```bash
 python setup.py
-```
+# L'étape 0 détecte automatiquement les PDFs manquants et nettoie cache + data + ES
 
-L'étape 0 détecte automatiquement les PDFs manquants et nettoie cache + data + Elasticsearch.
-
-### ✅ Nettoyage manuel via terminal
-
-```bash
-# Aperçu — voir les orphelins sans rien modifier
-python cv_sync.py --dry-run
-
-# Nettoyage réel
-python cv_sync.py
+# ou directement :
+python cv_sync.py          # nettoyage réel
+python cv_sync.py --dry-run  # aperçu sans modifier
 ```
 
 ---
 
 ## 🔍 Détection de doublons — 3 niveaux
 
-Appliquée identiquement dans `setup.py` ET dans la page **"Ajouter CV"** :
+Appliquée identiquement dans `setup.py` ET dans la page Streamlit **"Ajouter CV"** :
 
 | Niveau | Méthode | Cas détecté |
 |---|---|---|
 | **1 — Hash SHA-256** | Empreinte binaire du fichier | Même fichier PDF copié avec un autre nom |
-| **2 — Email / Téléphone** | Correspondance exacte dans les données extraites | Même personne, CV différent |
-| **3 — Similarité sémantique** | Cosinus entre embeddings multilingues (seuil configurable) | Même personne sans email/téléphone, CV anonymisé |
+| **2 — Email / Téléphone** | Correspondance exacte dans les données extraites | Même personne, CV différent (ex: `CV_Ahmed.pdf` et `CV_Ahmed_Copie.pdf`) |
+| **3 — Similarité sémantique** | Cosinus entre embeddings multilingues | Même personne sans email/téléphone, ou CV anonymisé |
 
 Un CV est **rejeté dès qu'un niveau est déclenché** — il n'est écrit ni dans `cv_cache.json`, ni dans `cvs_data.json`, ni dans Elasticsearch.
 
@@ -220,31 +211,25 @@ Un CV est **rejeté dès qu'un niveau est déclenché** — il n'est écrit ni d
 
 ## 💾 Comprendre les fichiers de données
 
-### `output/cv_cache.json` — Cache technique
+### `output/cv_cache.json` — Cache technique LLM
 
 **Rôle :** Éviter de re-appeler le LLM pour un PDF déjà traité.
 
-**Clé :** hash SHA-256 du fichier PDF
-
-**Contenu :** extraction brute complète (toutes les infos du CV + métadonnées)
-
-**Quand il est mis à jour :**
-- ✅ À l'ajout d'un nouveau CV (Streamlit ou `setup.py`)
-- ✅ À la suppression depuis la page Recherche
-- ✅ Au nettoyage via `python setup.py` ou `python cv_sync.py`
+| Propriété | Détail |
+|---|---|
+| **Clé** | Hash SHA-256 du fichier PDF |
+| **Contenu** | Extraction brute complète (toutes les infos du CV + métadonnées) |
+| **Mise à jour** | À l'ajout, à la suppression, au nettoyage via `setup.py` ou `cv_sync.py` |
 
 ### `output/cvs_data.json` — Registre principal
 
 **Rôle :** Source de vérité pour le dashboard Streamlit et les exports Excel.
 
-**Clé :** index numérique (liste JSON)
-
-**Contenu :** données structurées et nettoyées de chaque CV unique
-
-**Quand il est mis à jour :**
-- ✅ À l'ajout d'un nouveau CV (Streamlit ou `setup.py`)
-- ✅ À la suppression depuis la page Recherche
-- ✅ Au nettoyage via `python setup.py` ou `python cv_sync.py`
+| Propriété | Détail |
+|---|---|
+| **Clé** | Index numérique (liste JSON) |
+| **Contenu** | Données structurées et nettoyées de chaque CV unique |
+| **Mise à jour** | À l'ajout, à la suppression, au nettoyage via `setup.py` ou `cv_sync.py` |
 
 ### Différence clé
 
@@ -253,27 +238,6 @@ Un CV est **rejeté dès qu'un niveau est déclenché** — il n'est écrit ni d
 | **Usage** | Éviter les appels LLM redondants | Dashboard + exports |
 | **Clé** | Hash SHA-256 du PDF | Index numérique |
 | **Contenu** | Extraction brute complète | Données structurées nettoyées |
-| **Taille** | Plus volumineux | Plus léger |
-
----
-
-## 🧠 Principe anti-hallucination
-
-| Composant | Rôle |
-|---|---|
-| **LLM** | Évalue la qualité par unité (1 projet, 1 certification à la fois) |
-| **Python** | Effectue tous les calculs finaux (scores, années d'expérience, doublons) |
-| **Elasticsearch** | Applique les filtres utilisateur **avant** tout appel LLM |
-
-**Score qualité** = moyenne pondérée de 5 composantes (configurable dans `.env`) :
-
-| Composante | Variable `.env` | Poids par défaut |
-|---|---|---|
-| Diplôme | `QUALITY_WEIGHT_DIPLOME` | 25 % |
-| Projets | `QUALITY_WEIGHT_PROJETS` | 25 % |
-| Certifications | `QUALITY_WEIGHT_CERTIFICATIONS` | 20 % |
-| Diversité technique | `QUALITY_WEIGHT_TECH` | 20 % |
-| Langues | `QUALITY_WEIGHT_LANGUES` | 10 % |
 
 ---
 
@@ -308,8 +272,6 @@ python cv_comparator.py --provider groq --provider gemini
 cv-pipeline/
 ├── app.py                    ← Point d'entrée Streamlit
 ├── setup.py                  ← Installation complète en UNE commande
-├── cv_sync.py                ← Synchronisation / nettoyage des orphelins
-├── cv_removal.py             ← Suppression complète d'un CV (4 cibles)
 ├── theme.py                  ← Design system CSS partagé
 ├── .env                      ← Clés API (à créer, non versionné)
 ├── .env.example              ← Modèle .env avec tous les paramètres commentés
@@ -318,7 +280,7 @@ cv-pipeline/
 │   ├── 1_Dashboard.py        ← KPIs et visualisations temps réel
 │   ├── 2_Recherche.py        ← Recherche avancée + suppression CV
 │   ├── 3_Chatbot.py          ← Chatbot RAG conversationnel
-│   └── 4_Ajouter_CV.py      ← Upload PDF + extraction + indexation
+│   └── 4_Ajouter_CV.py      ← Upload PDF → extraction LLM → indexation
 │
 ├── chatbot/                  ← Logique RAG et ranking
 │   ├── intent.py             ← Classification d'intention
@@ -335,6 +297,8 @@ cv-pipeline/
 ├── cv_cache.py               ← Cache SHA-256 (JSON)
 ├── cv_reader.py              ← Lecture PDF (texte / colonnes / OCR)
 ├── cv_saver.py               ← Sauvegarde JSON + Excel
+├── cv_removal.py             ← Suppression complète d'un CV (ES + cache + data + PDF)
+├── cv_sync.py                ← Nettoyage des entrées orphelines
 ├── create_index.py           ← Création de l'index ES avec mapping
 ├── es_client.py              ← Client Elasticsearch centralisé
 ├── docker-compose.yml        ← Elasticsearch 8.x + Kibana 8.x
@@ -344,7 +308,7 @@ cv-pipeline/
 ├── cvs_uploads/              ← PDFs uploadés via Streamlit (non versionné)
 └── output/
     ├── cv_cache.json         ← Cache des extractions (non versionné)
-    ├── cvs_data.json         ← Registre principal — CVs uniques
+    ├── cvs_data.json         ← Données structurées — CVs uniques seulement
     └── cvs_data.xlsx         ← Export Excel
 ```
 
@@ -363,6 +327,26 @@ Testés sur **10 CVs réels**, **5 configurations** :
 | Gemini 2.5 Flash-Lite | 40 % | 21.82 s | 90 % | 6 |
 
 > Les échecs Gemini sont dus aux limites du tier gratuit (429), pas à un défaut d'analyse.
+
+---
+
+## 🧠 Principe anti-hallucination
+
+| Composant | Rôle |
+|---|---|
+| **LLM** | Évalue la qualité par unité (1 projet, 1 certification à la fois) |
+| **Python** | Effectue tous les calculs finaux (scores, années d'expérience, doublons) |
+| **Elasticsearch** | Applique les filtres utilisateur **avant** tout appel LLM |
+
+**Score qualité** = moyenne pondérée de 5 composantes (configurable dans `.env`) :
+
+| Composante | Variable `.env` | Poids par défaut |
+|---|---|---|
+| Diplôme | `QUALITY_WEIGHT_DIPLOME` | 25 % |
+| Projets | `QUALITY_WEIGHT_PROJETS` | 25 % |
+| Certifications | `QUALITY_WEIGHT_CERTIFICATIONS` | 20 % |
+| Diversité technique | `QUALITY_WEIGHT_TECH` | 20 % |
+| Langues | `QUALITY_WEIGHT_LANGUES` | 10 % |
 
 ---
 
@@ -390,17 +374,16 @@ C:\Program Files\Tesseract-OCR\tesseract.exe
 
 ### ❌ Doublon détecté à l'upload dans Streamlit
 Le CV est déjà présent (même email, téléphone ou contenu similaire).
-- Pour mettre à jour : supprimez l'ancienne version depuis la page **Recherche** → **🗑️ Supprimer**
+- Pour mettre à jour : supprimez l'ancienne version depuis la page **Recherche** → **▼ Détails** → **🗑️ Supprimer**
 - Puis uploadez la nouvelle version sur la page **Ajouter CV**
-
-### ❌ CV supprimé de Kibana mais encore visible dans Streamlit
-Kibana ne peut supprimer que le document Elasticsearch — pas les fichiers JSON.
-**Solution :** Utilisez toujours la page **Recherche** de Streamlit pour supprimer un CV.
 
 ### ❌ Entrées fantômes dans le cache après suppression manuelle d'un PDF
 ```bash
 python setup.py
 # L'étape 0 nettoie automatiquement les orphelins
+
+# ou directement :
+python cv_sync.py
 ```
 
 ### ❌ Les doublons apparaissent encore dans Kibana / Streamlit
@@ -415,7 +398,7 @@ python setup.py
 ## ⚠️ Points importants
 
 - **`cvs/`** et **`cvs_uploads/`** contiennent des **données personnelles** — dans `.gitignore`, ne jamais committer.
-- **Ne jamais supprimer un CV depuis Kibana** — utilisez toujours la page **Recherche** de Streamlit.
+- **Ne jamais supprimer un CV depuis Kibana** — utilisez toujours la page **Recherche** de Streamlit pour une suppression complète (ES + cache + JSON + PDF).
 - **`cvs_data.json`** et **`cv_cache.json`** ne contiennent que des CVs **uniques** — la détection 3 niveaux garantit qu'aucune personne n'apparaît deux fois.
 - Le dashboard Kibana se **rafraîchit automatiquement toutes les 30 secondes** — aucune action manuelle requise.
 - Le champ `nom` est indexé `text + keyword` dans Elasticsearch — requis pour les graphiques "par candidat" dans Kibana.
