@@ -20,6 +20,8 @@ from typing import List, Dict, Optional, Tuple, Any
 # Ajouter le répertoire parent au PATH pour importer es_client
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from es_client import get_es_client
+from cv_cache import CVCache
+from cv_removal import remove_cv
 
 # ---------------------------------------------------------------------------
 # Constantes
@@ -388,7 +390,7 @@ def executer_recherche(
         st.error(f"❌ Erreur lors de la recherche ES : {e}")
         return [], 0
 
-    hits = [h["_source"] for h in res["hits"]["hits"]]
+    hits = [{"_id": h["_id"], **h["_source"]} for h in res["hits"]["hits"]]
     total_hits = res["hits"]["total"]
     # total peut être un dict {"value": N, "relation": "eq"} ou un int
     if isinstance(total_hits, dict):
@@ -407,8 +409,9 @@ def _score_color(score):
     return "#fa709a"
 
 
-def afficher_cv(doc: Dict, rang: int):
+def afficher_cv(doc: Dict, rang: int, es=None, cache=None):
     """Affiche un CV dans une carte stylise avec toggle expand/collapse."""
+    doc_id = doc.get("_id", "")
     nom = doc.get("nom", "Inconnu")
     categ = doc.get("categorie_principale", "—")
     score = doc.get("score_qualite_globale")
@@ -562,6 +565,43 @@ def afficher_cv(doc: Dict, rang: int):
                 if val is not None:
                     st.markdown(f"  • {dom} : **{val:.1f}**/10")
 
+        # ── Supprimer ce CV ────────────────────────────────────────────────
+        if es is not None and cache is not None:
+            st.divider()
+            _del_key = f"confirm_del_{rang}_{nom}"
+            _confirm = st.checkbox(
+                f"🗑️ Supprimer **{nom}** complètement du système",
+                key=_del_key,
+            )
+            if _confirm:
+                st.warning(
+                    "Cette action efface le CV de **Elasticsearch**, "
+                    "**cv_cache.json**, **cvs_data.json** et le **fichier PDF**."
+                )
+                if st.button(
+                    "🗑️ Confirmer la suppression",
+                    type="primary",
+                    key=f"btn_del_{rang}_{nom}",
+                ):
+                    with st.spinner("Suppression en cours..."):
+                        _src = {
+                            "nom":       doc.get("nom", ""),
+                            "email":     doc.get("email", ""),
+                            "telephone": doc.get("telephone", ""),
+                            "filename":  doc.get("filename", ""),
+                        }
+                        _rpt = remove_cv(es, cache, doc_id, _src)
+                    if _rpt.get("success"):
+                        _parts = []
+                        if _rpt.get("elasticsearch"): _parts.append("Elasticsearch")
+                        if _rpt.get("cache"):         _parts.append("cache")
+                        if _rpt.get("output"):        _parts.append("JSON/Excel")
+                        if _rpt.get("pdf"):           _parts.append("fichier PDF")
+                        st.success(f"✅ **{nom}** supprimé de : {' · '.join(_parts)}")
+                        st.rerun()
+                    else:
+                        st.error("❌ Suppression échouée. Vérifiez qu'Elasticsearch est démarré.")
+
         st.markdown('</div>', unsafe_allow_html=True)
 
 
@@ -580,6 +620,7 @@ hero("🔎", "Recherche Avancée de CVs", "Filtrage multi-critères • Tri • 
 
 
 es = get_es_client()
+cache = CVCache()
 
 # --- Vérification de l'index ---
 if not index_existe(es):
@@ -811,7 +852,7 @@ st.markdown(
 # --- Affichage des résultats ---
 for i, doc in enumerate(hits):
     rang = debut + i
-    afficher_cv(doc, rang)
+    afficher_cv(doc, rang, es=es, cache=cache)
 
 # --- Navigation pagination ---
 st.divider()
