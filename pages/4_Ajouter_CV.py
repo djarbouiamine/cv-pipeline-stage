@@ -316,41 +316,7 @@ if assessment["can_index"]:
                 st.error(f"❌ Échec de la sauvegarde/indexation : {e}")
 else:
     st.button("✅ Valider et indexer", type="primary", disabled=True)
-    st.caption("Corrigez le problème (autre PDF ou suppression du doublon existant) pour continuer.")
-
-    st.divider()
-    st.subheader("🗑️ Supprimer les données existantes")
-    st.warning(
-        "Supprime ce CV du cache, des uploads et du dashboard (si présent), "
-        "puis relance l'extraction depuis le début."
-    )
-    confirm_purge = st.checkbox("Je confirme la suppression", key="confirm_purge_cv")
-    if st.button(
-        "🗑️ Supprimer et recommencer",
-        disabled=not confirm_purge,
-        key="purge_cv_btn",
-    ):
-        source = {
-            "filename": result["filename"],
-            "email": data.get("email"),
-            "nom": data.get("nom"),
-        }
-        report = remove_cv(es, cache, file_hash, source)
-        reset_upload_state()
-        if report.get("success"):
-            parts = []
-            if report.get("elasticsearch"):
-                parts.append(f"dashboard ({report.get('elasticsearch_count', 1)})")
-            if report.get("cache"):
-                parts.append(f"cache ({report.get('cache_count', 1)})")
-            if report.get("pdf"):
-                parts.append("PDF cvs/uploads")
-            if report.get("output"):
-                parts.append("JSON/Excel")
-            st.success(f"✅ Supprimé : {', '.join(parts)}. Déposez à nouveau le PDF.")
-        else:
-            st.error("❌ Aucune donnée n'a pu être supprimée. Vérifiez qu'Elasticsearch est démarré.")
-        st.rerun()
+    st.caption("Ce CV est un doublon ou déjà indexé. Supprimez-le depuis le dashboard puis réessayez.")
 
 if st.session_state.get("index_success") and assessment["can_index"]:
     if st.button("➕ Ajouter un autre CV"):

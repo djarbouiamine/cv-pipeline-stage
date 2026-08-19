@@ -9,6 +9,7 @@ Expose aussi check_single_cv_duplicates() pour la vérification interactive
 d'un seul CV (page "Ajouter un CV").
 """
 
+import os
 import hashlib
 import numpy as np
 from typing import List, Dict, Tuple, Any, Optional
@@ -16,11 +17,17 @@ from typing import List, Dict, Tuple, Any, Optional
 from cv_extractor import embedding_model
 
 # ---------------------------------------------------------------------------
-# Constantes
+# Constantes (surchargeables via .env)
 # ---------------------------------------------------------------------------
 
-DEFAULT_SIMILARITY_THRESHOLD = 0.90
-UPDATE_SIMILARITY_THRESHOLD = 0.98
+def _env_float(key: str, default: float) -> float:
+    try:
+        return float(os.environ.get(key, default))
+    except (ValueError, TypeError):
+        return default
+
+DEFAULT_SIMILARITY_THRESHOLD = _env_float("DEDUP_SIMILARITY_THRESHOLD", 0.90)
+UPDATE_SIMILARITY_THRESHOLD  = _env_float("DEDUP_UPDATE_THRESHOLD", 0.98)
 
 
 def _normalize_phone(phone: str) -> str:

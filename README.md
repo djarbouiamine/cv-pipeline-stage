@@ -42,7 +42,13 @@ pip install -r requirements.txt
 
 ### Étape 3 — Configurer vos clés API
 
-Créez un fichier **`.env`** à la racine du projet (même dossier que `app.py`) :
+Copiez `.env.example` en `.env` et remplissez vos valeurs :
+
+```bash
+copy .env.example .env
+```
+
+Ou créez le fichier **`.env`** manuellement à la racine du projet :
 
 ```env
 # ── LLM — au moins UNE clé est obligatoire ──────────────────────
@@ -51,20 +57,30 @@ GEMINI_API_KEY=votre_cle_gemini      # Optionnel
 OPENROUTER_API_KEY=votre_cle_or      # Optionnel
 MISTRAL_API_KEY=votre_cle_mistral    # Optionnel
 
-# ── Ordre de bascule automatique si quota atteint ───────────────
+# ── Fallback automatique si quota atteint ───────────────────────
 AUTO_FALLBACK=true
 FALLBACK_ORDER=groq,openrouter,mistral,gemini
 
-# ── Elasticsearch (valeur par défaut : localhost:9200) ───────────
+# ── Elasticsearch ────────────────────────────────────────────────
 ELASTIC_HOST=http://localhost:9200
 
-# ── Pondération du score qualité (total = 100) ───────────────────
-QUALITY_WEIGHT_DIPLOME=25
-QUALITY_WEIGHT_CERTIFICATIONS=20
-QUALITY_WEIGHT_TECH=20
-QUALITY_WEIGHT_PROJETS=25
-QUALITY_WEIGHT_LANGUES=10
+# ── Score qualité — pondération (A+B+C+D+E = 100) ───────────────
+# score_final = diplome*A + certifications*B + tech*C + projets*D + langues*E
+#               ─────────────────────────────────────────────────────────────
+#                                     100
+QUALITY_WEIGHT_DIPLOME=25        # A — niveau académique
+QUALITY_WEIGHT_CERTIFICATIONS=20 # B — certifications (AWS, Azure, PMP…)
+QUALITY_WEIGHT_TECH=20           # C — diversité technique
+QUALITY_WEIGHT_PROJETS=25        # D — projets réalisés
+QUALITY_WEIGHT_LANGUES=10        # E — langues maîtrisées
+
+# ── Seuils de détection de doublons (Niveau 3 — similarité) ─────
+# 0.90 = 2 CVs à 90% similaires → même personne (doublon rejeté)
+DEDUP_SIMILARITY_THRESHOLD=0.90  # augmenter = moins strict
+DEDUP_UPDATE_THRESHOLD=0.98      # seuil "mise à jour" (> SIMILARITY)
 ```
+
+> 📄 Consultez **`.env.example`** pour la liste complète des paramètres avec explications détaillées.
 
 ---
 
