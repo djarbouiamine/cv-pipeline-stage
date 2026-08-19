@@ -404,7 +404,7 @@ if st.sidebar.button(
     "🗑️ Supprimer",
     type="primary",
     disabled=not cv_to_delete_id or not confirm_delete,
-    use_container_width=True,
+    width='stretch',
 ):
     matches = df[df["_doc_id"].astype(str) == cv_to_delete_id]
     if matches.empty:
@@ -510,7 +510,7 @@ with tab_overview:
                 margin=dict(t=10, b=10), font_color="rgba(255,255,255,0.85)",
                 legend=dict(bgcolor="rgba(0,0,0,0)", font_color="rgba(255,255,255,0.7)"),
             )
-            st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, width='stretch')
             if len(cat_counts) == 1:
                 cat = cat_counts.index[0]
                 if st.button(f"💬 Recommander en {cat}", key=f"chat_cat_{cat}"):
@@ -536,7 +536,7 @@ with tab_overview:
                 xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
                 yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
             )
-            st.plotly_chart(fig_hist, use_container_width=True)
+            st.plotly_chart(fig_hist, width='stretch')
         else:
             st.info("Pas de scores disponibles.")
 
@@ -557,7 +557,7 @@ with tab_overview:
             xaxis=dict(gridcolor="rgba(255,255,255,0.05)", title="Années d'expérience"),
             yaxis=dict(gridcolor="rgba(255,255,255,0.05)", title="Score qualité"),
         )
-        st.plotly_chart(fig_scatter, use_container_width=True)
+        st.plotly_chart(fig_scatter, width='stretch')
     else:
         st.info("Ajoutez plus de CVs pour afficher le nuage de points.")
 
@@ -574,10 +574,10 @@ with tab_overview:
             data=csv_data,
             file_name="cvs_filtres.csv",
             mime="text/csv",
-            use_container_width=True,
+            width='stretch',
         )
     with btn_col:
-        if st.button("💬 Demander au Chatbot sur cette sélection", use_container_width=True):
+        if st.button("💬 Demander au Chatbot sur cette sélection", width='stretch'):
             parts = []
             if len(categories_choisies) < len(categories_disponibles):
                 parts.append(f"catégorie {', '.join(categories_choisies)}")
@@ -603,7 +603,7 @@ with tab_overview:
         nombre_a_afficher = max_affichage
 
     table_view = df_filtre[export_cols].head(nombre_a_afficher)
-    st.dataframe(table_view, use_container_width=True, hide_index=True)
+    st.dataframe(table_view, width='stretch', hide_index=True)
 
     noms_filtre = df_filtre["Nom"].tolist()
     compare_col1, compare_col2 = st.columns([3, 1])
@@ -652,7 +652,7 @@ with tab_skills:
             xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
             yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
         )
-        st.plotly_chart(fig_tech, use_container_width=True)
+        st.plotly_chart(fig_tech, width='stretch')
 
         st.markdown("**Actions rapides**")
         skill_cols = st.columns(min(4, len(top20)))
@@ -698,7 +698,7 @@ with tab_quality:
                 xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
                 yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
             )
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_bar, width='stretch')
         else:
             st.info("Pas assez de données.")
 
@@ -719,7 +719,7 @@ with tab_quality:
                 xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
                 yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
             )
-            st.plotly_chart(fig_exp, use_container_width=True)
+            st.plotly_chart(fig_exp, width='stretch')
         else:
             st.info("Pas assez de données.")
 
@@ -743,7 +743,7 @@ with tab_quality:
             xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
             yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
         )
-        st.plotly_chart(fig_tiers, use_container_width=True)
+        st.plotly_chart(fig_tiers, width='stretch')
 
 # ---------------------------------------------------------------------------
 # Onglet Pipeline
@@ -787,7 +787,7 @@ with tab_pipeline:
             xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
             yaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
         )
-        st.plotly_chart(fig_timeline, use_container_width=True)
+        st.plotly_chart(fig_timeline, width='stretch')
     else:
         st.info("Aucune date d'indexation exploitable.")
 
@@ -825,6 +825,6 @@ with tab_alerts:
                 else:
                     icone = "⚠️"
                 lignes_alertes.append({"Candidat": row["Nom"], "Alerte": f"{icone} {alerte}"})
-        st.dataframe(pd.DataFrame(lignes_alertes), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(lignes_alertes), width='stretch', hide_index=True)
     else:
         st.success("✅ Aucune alerte de parcours détectée sur les CVs filtrés.")

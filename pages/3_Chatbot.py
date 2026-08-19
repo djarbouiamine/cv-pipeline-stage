@@ -1599,7 +1599,7 @@ for msg in st.session_state.chat_history:
         if msg.get("trace_badge"):
             st.markdown(msg["trace_badge"])
         if msg.get("sources_df") is not None and not msg["sources_df"].empty:
-            st.dataframe(msg["sources_df"], use_container_width=True, hide_index=True)
+            st.dataframe(msg["sources_df"], width='stretch', hide_index=True)
         if msg.get("stats"):
             with st.expander("📊 Voir les statistiques brutes", expanded=False):
                 st.json(msg["stats"])
@@ -1817,7 +1817,7 @@ if question and question.strip():
         if trace_badge:
             st.markdown(trace_badge)
         if not sources_df.empty:
-            st.dataframe(sources_df, use_container_width=True, hide_index=True)
+            st.dataframe(sources_df, width='stretch', hide_index=True)
         if stats:
             with st.expander("📊 Voir les statistiques brutes", expanded=False):
                 st.json(stats)

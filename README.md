@@ -1,31 +1,33 @@
-﻿# CV Pipeline — Intelligence de Recrutement
+# 🧠 CV Pipeline — Intelligence de Recrutement
 
-> **Extraction** • **Classification** • **Scoring** • **Recherche sémantique** • **Chatbot RAG**
+> **Extraction** • **Classification** • **Scoring** • **Recherche sémantique** • **RAG Chatbot**
 >
-> Pipeline complet pour analyser des CVs PDF avec LLM + Elasticsearch. Tous les calculs sont déterministes en Python — le LLM ne fait jamais de calcul final.
+> Pipeline complet pour analyser des CVs PDF avec LLM + Elasticsearch.
+> Tous les calculs finaux sont **Python déterministe** — le LLM ne fait jamais de calcul direct.
 
 ---
 
-## ⚡ Démarrage rapide (5 étapes)
+## ✅ Prérequis — Installez ceci avant tout
 
-### Prérequis
-
-| Outil | Version | Utilité |
+| Outil | Lien de téléchargement | Utilité |
 |---|---|---|
-| Python | 3.10+ | Runtime |
-| Docker Desktop | Dernière | Elasticsearch + Kibana |
-| Tesseract OCR | Dernière | CVs scannés/images |
-| Poppler | Dernière | Conversion PDF |
-| Clé API LLM | — | Groq (gratuit), Gemini, Mistral ou OpenRouter |
+| **Python 3.10+** | https://python.org/downloads | Runtime |
+| **Docker Desktop** | https://docker.com/products/docker-desktop | Elasticsearch + Kibana |
+| **Tesseract OCR** | https://github.com/UB-Mannheim/tesseract/wiki | Lire les CVs scannés |
+| **Poppler** | https://github.com/oschwartz10612/poppler-windows/releases | Conversion PDF en image |
+| **Clé API LLM** | https://console.groq.com *(gratuit)* | Extraction intelligente |
+
+> 💡 **Groq est recommandé** : gratuit, rapide (< 2 s par CV), aucune carte bancaire requise.
 
 ---
+
+## 🚀 Démarrage en 5 étapes
 
 ### Étape 1 — Cloner le projet
 
 ```bash
 git clone https://github.com/djarbouiamine/cv-pipeline-stage.git
 cd cv-pipeline-stage
-git checkout stage
 ```
 
 ---
@@ -38,22 +40,31 @@ pip install -r requirements.txt
 
 ---
 
-### Étape 3 — Configurer les clés API
+### Étape 3 — Configurer vos clés API
 
-Créer un fichier `.env` à la racine du projet :
+Créez un fichier **`.env`** à la racine du projet (même dossier que `app.py`) :
 
 ```env
-# Minimum : une seule clé suffit (Groq recommandé — gratuit et rapide)
-GROQ_API_KEY=votre_cle_groq
-GEMINI_API_KEY=votre_cle_gemini
-OPENROUTER_API_KEY=votre_cle_openrouter
-MISTRAL_API_KEY=votre_cle_mistral
+# ── LLM — au moins UNE clé est obligatoire ──────────────────────
+GROQ_API_KEY=votre_cle_groq          # Recommandé — gratuit sur console.groq.com
+GEMINI_API_KEY=votre_cle_gemini      # Optionnel
+OPENROUTER_API_KEY=votre_cle_or      # Optionnel
+MISTRAL_API_KEY=votre_cle_mistral    # Optionnel
 
-# Elasticsearch (optionnel — valeur par défaut : localhost:9200)
+# ── Ordre de bascule automatique si quota atteint ───────────────
+AUTO_FALLBACK=true
+FALLBACK_ORDER=groq,openrouter,mistral,gemini
+
+# ── Elasticsearch (valeur par défaut : localhost:9200) ───────────
 ELASTIC_HOST=http://localhost:9200
-```
 
-> **Obtenir une clé Groq gratuite** → https://console.groq.com
+# ── Pondération du score qualité (total = 100) ───────────────────
+QUALITY_WEIGHT_DIPLOME=25
+QUALITY_WEIGHT_CERTIFICATIONS=20
+QUALITY_WEIGHT_TECH=20
+QUALITY_WEIGHT_PROJETS=25
+QUALITY_WEIGHT_LANGUES=10
+```
 
 ---
 
@@ -63,9 +74,9 @@ ELASTIC_HOST=http://localhost:9200
 docker compose up -d
 ```
 
-Attendre ~30 secondes, puis vérifier :
-- Elasticsearch → http://localhost:9200
-- Kibana → http://localhost:5601
+Attendez ~30 secondes, puis vérifiez que ces URLs répondent :
+- **Elasticsearch** → http://localhost:9200
+- **Kibana** → http://localhost:5601
 
 ---
 
@@ -75,72 +86,152 @@ Attendre ~30 secondes, puis vérifier :
 python setup.py
 ```
 
-Cette commande fait **tout automatiquement** :
-1. Crée l'index Elasticsearch avec le bon mapping
-2. Injecte les CVs depuis `output/cvs_data.json` (si présent)
-3. Crée le dashboard Kibana complet (13 visualisations)
+Cette **seule commande** fait tout dans l'ordre :
+
+| Étape | Action |
+|---|---|
+| **0** | 🧹 Sync — supprime du cache/data/ES les CVs dont le PDF a été effacé |
+| **1** | ✅ Vérifie qu'Elasticsearch et Kibana sont démarrés |
+| **2** | 🗂️ Crée l'index Elasticsearch avec le bon mapping |
+| **3a** | 📂 Charge les CVs déjà extraits depuis `output/cvs_data.json` |
+| **3b** | 🔍 Scanne `cvs/` et `cvs_uploads/` pour détecter de nouveaux PDFs |
+| **3c** | 🤖 Extrait les nouveaux PDFs via LLM avec **détection de doublons 3 niveaux** |
+| **3d** | ⚡ Injecte tous les CVs dans Elasticsearch (ID stable — idempotent) |
+| **4** | 📊 Crée le dashboard Kibana complet (13 visualisations) |
 
 ---
 
-## 🚀 Lancer l'application
+### Étape 6 — Lancer l'application Streamlit
 
 ```bash
 streamlit run app.py
 ```
 
-→ Ouvre http://localhost:8501
+→ Ouvre **http://localhost:8501** dans votre navigateur.
 
 ---
 
-## 📊 Pages de l'application
+## 📱 Pages de l'application
 
-| Page | Accès | Description |
+| Page | URL | Description |
 |---|---|---|
-| **🧠 Accueil** | `/` | Vue d'ensemble + navigation |
-| **📊 Dashboard** | `/1_Dashboard` | KPIs, scores, graphiques, alertes |
-| **🔎 Recherche** | `/2_Recherche` | Filtrage avancé multi-critères |
-| **💬 Chatbot RAG** | `/3_Chatbot` | Assistant IA conversationnel sur les CVs |
-| **📤 Ajouter CV** | `/4_Ajouter_CV` | Upload PDF → extraction → indexation |
+| 🧠 **Accueil** | `/` | Vue d'ensemble et navigation |
+| 📊 **Dashboard** | `/1_Dashboard` | KPIs, scores, graphiques en temps réel |
+| 🔎 **Recherche** | `/2_Recherche` | Filtrage avancé multi-critères |
+| 💬 **Chatbot RAG** | `/3_Chatbot` | Assistant IA conversationnel sur les CVs |
+| 📤 **Ajouter CV** | `/4_Ajouter_CV` | Upload PDF → extraction LLM → indexation |
 
 ---
 
-## 🗂️ Pipeline en ligne de commande
+## 📂 Ajouter des CVs — 2 méthodes
 
-### Traiter des CVs depuis le dossier `cvs/`
+### Méthode A : Via l'interface Streamlit (recommandée)
+
+1. Ouvrez **http://localhost:8501**
+2. Cliquez sur **"Ajouter CV"**
+3. Déposez un fichier PDF
+4. Cliquez **"Lancer l'extraction"** puis **"Valider et indexer"**
+
+✅ Le CV est automatiquement ajouté à `cv_cache.json`, `cvs_data.json` **et** Elasticsearch.
+
+### Méthode B : Via le dossier `cvs/`
+
+1. Copiez vos fichiers PDF dans le dossier `cvs/`
+2. Relancez simplement :
 
 ```bash
-# 1. Extraire et classifier les CVs (Groq par défaut)
-python cv_extractor.py
-
-# Avec un autre fournisseur
-python cv_extractor.py --provider gemini
-
-# 2. Sauvegarder en JSON + Excel
-python cv_saver.py
-
-# 3. Injecter dans Elasticsearch
-python cv_injector.py
+python setup.py
 ```
 
-### Utilitaires
+`setup.py` détecte automatiquement les nouveaux PDFs, applique la détection de doublons, extrait et injecte.
+
+---
+
+## 🔍 Détection de doublons — 3 niveaux
+
+Appliquée identiquement dans `setup.py` ET dans la page Streamlit **"Ajouter CV"** :
+
+| Niveau | Méthode | Cas détecté |
+|---|---|---|
+| **1 — Hash SHA-256** | Empreinte binaire du fichier | Même fichier PDF copié avec un autre nom |
+| **2 — Email / Téléphone** | Correspondance exacte dans les données extraites | Même personne, CV différent (ex: `CV_Ahmed.pdf` et `CV_Ahmed_Copie.pdf`) |
+| **3 — Similarité sémantique** | Cosinus entre embeddings multilingues | Même personne sans email/téléphone, ou CV anonymisé |
+
+Un CV est **rejeté dès qu'un niveau est déclenché** — il n'est écrit ni dans `cv_cache.json`, ni dans `cvs_data.json`, ni dans Elasticsearch.
+
+> Le niveau 3 est non-bloquant si le modèle d'embedding est indisponible — les niveaux 1 et 2 restent actifs.
+
+---
+
+## 🧹 Supprimer un CV / Synchroniser le cache
+
+### Depuis l'interface Streamlit
+
+Sur la page **"Ajouter CV"**, faites défiler jusqu'en bas :
+- Section **"🔄 Synchroniser le cache"**
+- **"🔍 Analyser"** → aperçu des entrées orphelines (dry-run)
+- **"🧹 Nettoyer les orphelins"** → supprime de `cv_cache.json`, `cvs_data.json` et Elasticsearch
+
+### Depuis le terminal
 
 ```bash
+# Aperçu sans rien modifier
+python cv_sync.py --dry-run
+
+# Nettoyage réel
+python cv_sync.py
+```
+
+### Via `python setup.py`
+
+Le nettoyage est **automatique à l'étape 0**. Si vous avez supprimé des PDFs des dossiers `cvs/` ou `cvs_uploads/`, relancez simplement :
+
+```bash
+python setup.py
+```
+
+---
+
+## 🗑️ Supprimer un CV complètement
+
+Depuis la page **"Ajouter CV"**, faites défiler jusqu'en bas :
+- Section **"🗑️ Supprimer un CV — retirer complètement du système"**
+- Choisissez le candidat dans la liste (chargée depuis Elasticsearch)
+- Cochez la case de confirmation
+- Cliquez **"🗑️ Supprimer définitivement"**
+
+Un seul clic supprime **partout** :
+
+| Où | Ce qui est supprimé |
+|---|---|
+| 🗄️ **Elasticsearch** | Document du dashboard |
+| 📦 **cv_cache.json** | Entrée de cache LLM |
+| 📋 **cvs_data.json** | Ligne + Excel mis à jour |
+| 📄 **Fichier PDF** | Effacé de `cvs/` **et** `cvs_uploads/` |
+
+---
+
+## 🗂️ Commandes utiles
+
+```bash
+# Lancer l'application Streamlit
+streamlit run app.py
+
+# Installation / réindexation complète
+python setup.py
+
+# Nettoyer le cache (orphelins)
+python cv_sync.py
+
+# Aperçu du nettoyage sans modifier
+python cv_sync.py --dry-run
+
+# Recréer seulement le dashboard Kibana
+python scripts/setup_kibana.py
+
 # Comparer les performances de plusieurs LLMs
 python cv_comparator.py
 python cv_comparator.py --provider groq --provider gemini
-
-# Évaluer le routage du chatbot
-python scripts/evaluate_chatbot.py
-```
-
-### Dashboard Kibana
-
-```bash
-# Créer/mettre à jour le dashboard (automatique avec setup.py)
-python scripts/setup_kibana.py
-
-# Le dashboard se met à jour automatiquement (refresh 30s)
-# → http://localhost:5601/app/dashboards
 ```
 
 ---
@@ -149,68 +240,63 @@ python scripts/setup_kibana.py
 
 ```
 cv-pipeline/
-├── app.py                      ← Point d'entrée Streamlit
-├── setup.py                    ← Installation en une commande
-├── theme.py                    ← Design system partagé (CSS)
-├── .env                        ← Clés API (à créer, non versionné)
+├── app.py                    ← Point d'entrée Streamlit
+├── setup.py                  ← Installation complète en UNE commande
+├── cv_sync.py                ← Synchronisation / nettoyage des orphelins
+├── theme.py                  ← Design system CSS partagé
+├── .env                      ← Clés API (à créer, non versionné)
 │
 ├── pages/
-│   ├── 1_Dashboard.py          ← KPIs et visualisations
-│   ├── 2_Recherche.py          ← Recherche avancée
-│   ├── 3_Chatbot.py            ← Chatbot RAG
-│   └── 4_Ajouter_CV.py        ← Upload et indexation
+│   ├── 1_Dashboard.py        ← KPIs et visualisations
+│   ├── 2_Recherche.py        ← Recherche avancée multi-critères
+│   ├── 3_Chatbot.py          ← Chatbot RAG conversationnel
+│   └── 4_Ajouter_CV.py      ← Upload PDF + sync orphelins
 │
-├── chatbot/                    ← Logique RAG et ranking
-│   ├── intent.py               ← Classification d'intention
-│   ├── recruiter_helpers.py    ← Filtres hard + ranking recruteur
-│   ├── llm_client.py           ← Client LLM dual-mode
-│   └── ...
+├── chatbot/                  ← Logique RAG et ranking
+│   ├── intent.py             ← Classification d'intention
+│   ├── recruiter_helpers.py  ← Filtres hard + ranking recruteur
+│   └── llm_client.py         ← Client LLM multi-provider
 │
 ├── scripts/
-│   ├── setup_kibana.py         ← Création automatique du dashboard Kibana
-│   ├── export_kibana.py        ← Export NDJSON
-│   └── evaluate_chatbot.py     ← Évaluation du routage
+│   ├── setup_kibana.py       ← Création automatique du dashboard Kibana
+│   └── evaluate_chatbot.py   ← Évaluation du routage chatbot
 │
-├── cv_extractor.py             ← Extraction LLM + scoring
-├── cv_injector.py              ← Injection Elasticsearch
-├── cv_deduplication.py         ← Détection doublons (3 niveaux)
-├── cv_cache.py                 ← Cache SHA-256
-├── create_index.py             ← Création de l'index ES
-├── es_client.py                ← Client ES centralisé
-├── docker-compose.yml          ← Elasticsearch 8.12 + Kibana 8.12
+├── cv_extractor.py           ← Extraction LLM + scoring
+├── cv_injector.py            ← Injection Elasticsearch (ID stable SHA-256)
+├── cv_deduplication.py       ← Détection doublons 3 niveaux
+├── cv_cache.py               ← Cache SHA-256 (JSON ou PostgreSQL)
+├── cv_reader.py              ← Lecture PDF (texte / colonnes / OCR)
+├── cv_saver.py               ← Sauvegarde JSON + Excel
+├── cv_removal.py             ← Suppression ciblée d'un CV
+├── cv_sync.py                ← Nettoyage des entrées orphelines
+├── create_index.py           ← Création de l'index ES avec mapping
+├── es_client.py              ← Client Elasticsearch centralisé
+├── docker-compose.yml        ← Elasticsearch 8.x + Kibana 8.x
 ├── requirements.txt
 │
-├── kibana_dashboard.ndjson     ← Dashboard Kibana exporté (versionné)
-├── cvs/                        ← CVs PDF pipeline CLI (non versionné)
-├── cvs_uploads/                ← CVs uploadés via l'app (non versionné)
-└── output/                     ← JSON / Excel générés (non versionné)
+├── cvs/                      ← PDFs pour pipeline CLI (non versionné)
+├── cvs_uploads/              ← PDFs uploadés via Streamlit (non versionné)
+└── output/
+    ├── cv_cache.json         ← Cache des extractions (non versionné)
+    ├── cvs_data.json         ← Données structurées — CVs uniques seulement
+    └── cvs_data.xlsx         ← Export Excel
 ```
 
 ---
 
-## 📊 Dashboard Kibana — Automatique
+## 🔬 Résultats comparatifs LLM
 
-Le dashboard Kibana est créé automatiquement par `python setup.py`.
-**Aucun clic manuel** — tout est généré par code via l'API REST Kibana.
-Il se **rafraîchit toutes les 30 secondes** : chaque nouveau CV ajouté apparaît immédiatement.
+Testés sur **10 CVs réels**, **5 configurations** :
 
-### Visualisations incluses
+| Modèle | Succès | Latence moy. | Complétude | Quotas |
+|---|---|---|---|---|
+| **Llama-3.3-70B (Groq)** | **100 %** | **1.41 s** | 90 % | 0 |
+| GPT-OSS-20B (OpenRouter) | 80 % | 19.10 s | 89 % | 0 |
+| OpenRouter Free (auto) | 80 % | 46.48 s | 88 % | 1 |
+| Gemini 2.5 Flash | 80 % | 15.89 s | 88 % | 2 |
+| Gemini 2.5 Flash-Lite | 40 % | 21.82 s | 90 % | 6 |
 
-| Graphique | Type | Description |
-|---|---|---|
-| Total CVs | Métrique | Nombre de CVs en temps réel |
-| Score moyen | Métrique colorée | Rouge → Vert selon la qualité |
-| Jauge qualité | Arc gauge | Score 0–100 avec seuils |
-| Répartition catégories | Camembert | Distribution par domaine |
-| Distribution scores | Histogramme | Tranches de 10 points |
-| Top 10 candidats | Barres horizontales | Classés par score |
-| Expérience par candidat | Barres | Années d'expérience |
-| Top Technologies | Barres horizontales | 15 plus fréquentes |
-| Top Frameworks | Barres horizontales | 15 plus fréquents |
-| Langues | Camembert | Langues parlées |
-| Score par domaine | Barres | Score moyen par catégorie |
-| Nuage de compétences | Tag cloud | Toutes les technologies |
-| **Tableau complet** | Tableau | Tous candidats + détails complets |
+> Les échecs Gemini sont dus aux limites du tier gratuit (429), pas à un défaut d'analyse.
 
 ---
 
@@ -218,40 +304,69 @@ Il se **rafraîchit toutes les 30 secondes** : chaque nouveau CV ajouté appara�
 
 | Composant | Rôle |
 |---|---|
-| **LLM** | Évaluation qualitative par unité (1 projet, 1 certification…) |
-| **Python** | Tous les calculs finaux (scores, années exp., doublons) |
-| **Elasticsearch** | Hard filters avant le LLM — jamais de filtre post-génération |
+| **LLM** | Évalue la qualité par unité (1 projet, 1 certification à la fois) |
+| **Python** | Effectue tous les calculs finaux (scores, années d'expérience, doublons) |
+| **Elasticsearch** | Applique les filtres utilisateur **avant** tout appel LLM |
 
-**Score qualité** = moyenne pondérée de 5 composantes :
+**Score qualité** = moyenne pondérée de 5 composantes (configurable dans `.env`) :
 
 | Composante | Poids par défaut |
 |---|---|
 | Diplôme | 25 % |
+| Projets | 25 % |
 | Certifications | 20 % |
 | Diversité technique | 20 % |
-| Projets | 25 % |
 | Langues | 10 % |
 
 ---
 
-## 🔬 Résultats comparatifs LLM
+## 🛠️ Résolution de problèmes fréquents
 
-Exécutés sur **10 CVs réels**, **5 configurations** :
+### ❌ Elasticsearch n'est pas disponible
+```bash
+docker compose up -d
+# Attendre 30 secondes puis relancer
+python setup.py
+```
 
-| Modèle | Succès | Latence moy. | Complétude | Justesse | Quotas |
-|---|---|---|---|---|---|
-| **Llama-3.3-70B (Groq)** | **100 %** | **1.41 s** | 90 % | 100 % | 0 |
-| GPT-OSS-20B (OpenRouter) | 80 % | 19.10 s | 89 % | 100 % | 0 |
-| OpenRouter Free (auto) | 80 % | 46.48 s | 88 % | 100 % | 1 |
-| Gemini 2.5 Flash | 80 % | 15.89 s | 88 % | 100 % | 2 |
-| Gemini 2.5 Flash-Lite | 40 % | 21.82 s | 90 % | 100 % | 6 |
+### ❌ Aucune clé API LLM configurée
+Vérifiez votre fichier `.env` — il doit contenir au moins :
+```env
+GROQ_API_KEY=votre_cle
+```
+Obtenez une clé gratuite sur https://console.groq.com
 
-> Les échecs Gemini viennent des quotas du tier gratuit (429), pas d'un défaut d'analyse.
+### ❌ Le texte extrait du PDF est quasi vide
+Le PDF est probablement une image scannée. Vérifiez que **Tesseract OCR** est installé :
+```
+C:\Program Files\Tesseract-OCR\tesseract.exe
+```
+
+### ❌ Doublon détecté à l'upload dans Streamlit
+Le CV est déjà présent (même email, téléphone ou contenu similaire).
+- Si c'est une mise à jour : supprimez l'ancienne version depuis la page **"Ajouter CV"** → section **"Supprimer un CV"**
+- Si c'est une erreur : vérifiez `output/cv_cache.json` pour voir quelle version est en cache
+
+### ❌ Entrées fantômes dans le cache après suppression d'un PDF
+```bash
+python cv_sync.py
+# ou via Streamlit : page "Ajouter CV" → "🔄 Synchroniser le cache"
+```
+
+### ❌ Les doublons apparaissent encore dans Kibana / Streamlit
+Le fichier `cvs_data.json` contient peut-être des entrées dupliquées d'une ancienne version.
+Relancez simplement :
+```bash
+python setup.py
+```
+`cv_injector.py` utilise désormais un **ID SHA-256 stable** par personne — même email = même document Elasticsearch, pas de doublon possible.
 
 ---
 
 ## ⚠️ Points importants
 
-- **`cvs_uploads/`** et **`cvs/`** contiennent des données personnelles — ne jamais committer (dans `.gitignore`).
-- **`cv_injector.py`** recrée l'index à chaque exécution. Pour ajouter des CVs sans tout supprimer, utiliser la page **"Ajouter CV"** de l'application Streamlit.
-- Le champ `nom` doit être de type `text + keyword` pour que les graphiques Kibana "par candidat" fonctionnent — c'est configuré automatiquement dans `create_index.py`.
+- **`cvs/`** et **`cvs_uploads/`** contiennent des **données personnelles** — dans `.gitignore`, ne jamais committer.
+- **`cv_injector.py`** recrée l'index à chaque appel direct. Pour ajouter un CV sans tout supprimer, utilisez **la page Streamlit** ou **`python setup.py`**.
+- **`cvs_data.json`** et **`cv_cache.json`** ne contiennent que des CVs **uniques** — la détection 3 niveaux garantit qu'aucune personne n'apparaît deux fois.
+- Le dashboard Kibana se **rafraîchit automatiquement toutes les 30 secondes** — aucune action manuelle requise.
+- Le champ `nom` est indexé `text + keyword` dans Elasticsearch — requis pour les graphiques "par candidat" dans Kibana.

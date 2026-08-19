@@ -1,4 +1,5 @@
 import json
+import hashlib
 from elasticsearch import Elasticsearch
 
 from cv_extractor import embedding_model
@@ -100,7 +101,8 @@ def delete_index(index_name=INDEX_NAME):
 def inject_cvs(json_path="output/cvs_data.json", index_name=INDEX_NAME):
     """
     Lit le JSON produit par cv_extractor.py / cv_saver.py et injecte
-    chaque CV dans Elasticsearch.
+    chaque CV dans Elasticsearch avec un ID stable (email+nom) pour eviter
+    les doublons meme en cas de re-injection.
     """
     with open(json_path, "r", encoding="utf-8") as f:
         results = json.load(f)
@@ -109,21 +111,48 @@ def inject_cvs(json_path="output/cvs_data.json", index_name=INDEX_NAME):
         print("[WARN] Aucun CV trouve dans le JSON -- rien a injecter.")
         return
 
-    # New injection logic matching current JSON structure
     injected = 0
-    for i, result in enumerate(results):
+    skipped_dup = 0
+    seen_emails: set = set()
+    seen_phones: set = set()
+
+    for result in results:
         data = result.get("data")
         if not data:
             print(f"[WARN] Ignore (pas de donnees) : {result.get('source_path')}")
             continue
 
+        # ── Deduplication intra-fichier (email / telephone) ──────────────────
+        entry_email = (data.get("email") or "").strip().lower()
+        entry_phone = (data.get("telephone") or "").strip()
+        entry_nom   = data.get("nom", result.get("filename", "?"))
+
+        if entry_email and entry_email in seen_emails:
+            print(f"[SKIP] Doublon (email) : {entry_nom} ({entry_email})")
+            skipped_dup += 1
+            continue
+        if entry_phone and entry_phone in seen_phones:
+            print(f"[SKIP] Doublon (telephone) : {entry_nom} ({entry_phone})")
+            skipped_dup += 1
+            continue
+
+        if entry_email: seen_emails.add(entry_email)
+        if entry_phone: seen_phones.add(entry_phone)
+
         doc = dict(data)  # copy to avoid mutating original
-        doc["filename"] = result.get("source_path", "")
+        doc["filename"] = result.get("filename") or result.get("source_path", "")
         doc["text"] = result.get("text", "")
 
-        # ── Calcul de l'embedding à la volée depuis le texte brut enrichi ──
-        # On concatène les champs structurés pour que l'embedding capture
-        # l'ensemble du profil technique (technologies, langages, frameworks, etc.)
+        # ── ID stable : evite les doublons ES lors de re-injections ──────────
+        # Priorite : hash du fichier > hash(email+nom) > hash(filename)
+        raw_id = (
+            result.get("hash")
+            or (entry_email + entry_nom)
+            or doc["filename"]
+        )
+        doc_id = hashlib.sha256(raw_id.encode("utf-8", errors="replace")).hexdigest()
+
+        # ── Calcul de l'embedding ─────────────────────────────────────────────
         text_for_embedding = doc["text"].strip()
         if not text_for_embedding:
             print(f"[WARN] Pas de texte pour {doc['filename']} -- impossible de generer l'embedding")
@@ -133,7 +162,6 @@ def inject_cvs(json_path="output/cvs_data.json", index_name=INDEX_NAME):
             print(f"[WARN] Modele d'embedding non disponible -- impossible d'injecter {doc['filename']}")
             continue
 
-        # Enrichir le texte avec les champs structurés pour un meilleur recall sémantique
         champs_enrichissement = []
         for champ in ["technologies", "langages", "frameworks", "bases_de_donnees",
                       "outils_devops", "certifications"]:
@@ -149,11 +177,14 @@ def inject_cvs(json_path="output/cvs_data.json", index_name=INDEX_NAME):
             texte_enrichi, normalize_embeddings=True
         ).tolist()
 
-        es.index(index=index_name, id=i, document=doc)
+        es.index(index=index_name, id=doc_id, document=doc)
         injected += 1
         print(f"[OK] Injecte : {doc.get('nom', doc['filename'])}")
 
     print(f"\n[DONE] {injected}/{len(results)} CVs injectes dans l'index '{index_name}'")
+    if skipped_dup:
+        print(f"[INFO] {skipped_dup} doublon(s) ignore(s) (meme email/telephone).")
+
 
 
 if __name__ == "__main__":

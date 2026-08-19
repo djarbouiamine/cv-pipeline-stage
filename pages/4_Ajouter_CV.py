@@ -230,7 +230,7 @@ if already_in_dashboard:
     )
     col_a, col_b = st.columns(2)
     with col_a:
-        if st.button("➕ Ajouter un autre CV", use_container_width=True):
+        if st.button("➕ Ajouter un autre CV", width='stretch'):
             reset_upload_state()
             st.rerun()
     with col_b:
@@ -238,7 +238,7 @@ if already_in_dashboard:
         if st.button(
             "🗑️ Supprimer du dashboard",
             disabled=not confirm_replace,
-            use_container_width=True,
+            width='stretch',
             key="replace_cv_btn",
         ):
             source = {
@@ -356,3 +356,208 @@ if st.session_state.get("index_success") and assessment["can_index"]:
     if st.button("➕ Ajouter un autre CV"):
         reset_upload_state()
         st.rerun()
+
+# ── Lien vers la page Gestion CVs ─────────────────────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+st.divider()
+st.info(
+    "🗂️ **Analyser un CV existant ou supprimer un CV complètement ?** "
+    "→ Rendez-vous sur la page **Gestion CVs** dans le menu de gauche."
+)
+
+# ── Synchronisation du cache ──────────────────────────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+st.divider()
+
+
+with st.expander("🔄 Synchroniser le cache — supprimer les CVs effacés du disque", expanded=False):
+    st.markdown("""
+<div style="background:rgba(255,165,0,0.07);border-left:4px solid #f6d365;
+border-radius:0 10px 10px 0;padding:0.8rem 1.2rem;margin-bottom:1rem">
+  <span style="color:#f6d365;font-weight:700;font-size:0.9rem">⚠️ Orphelins détectés ?</span><br>
+  <span style="color:rgba(255,255,255,0.6);font-size:0.82rem">
+  Si vous avez supprimé manuellement un PDF du dossier <code>cvs/</code> ou
+  <code>cvs_uploads/</code>, son extraction reste dans le cache et les fichiers JSON.
+  Cliquez sur <strong>Analyser</strong> pour voir les orphelins, puis <strong>Nettoyer</strong>
+  pour les supprimer.
+  </span>
+</div>
+""", unsafe_allow_html=True)
+
+    try:
+        from cv_sync import sync_orphans, _all_pdf_filenames
+
+        # Dry-run preview
+        col_analyze, col_clean = st.columns(2)
+        with col_analyze:
+            if st.button("🔍 Analyser (aperçu)", width='stretch', key="btn_sync_analyze"):
+                with st.spinner("Analyse en cours..."):
+                    preview = sync_orphans(es=es, dry_run=True)
+                st.session_state["sync_preview"] = preview
+
+        with col_clean:
+            has_orphans = bool(
+                st.session_state.get("sync_preview", {}).get("orphaned_cache")
+                or st.session_state.get("sync_preview", {}).get("orphaned_data")
+                or st.session_state.get("sync_preview", {}).get("orphaned_es")
+            )
+            if st.button(
+                "🧹 Nettoyer les orphelins",
+                width='stretch',
+                key="btn_sync_clean",
+                disabled=not has_orphans,
+                type="primary" if has_orphans else "secondary",
+            ):
+                with st.spinner("Nettoyage en cours..."):
+                    result_sync = sync_orphans(es=es, dry_run=False)
+                st.session_state["sync_preview"] = None
+                total_removed = (
+                    result_sync["removed_cache"]
+                    + result_sync["removed_data"]
+                    + result_sync["removed_es"]
+                )
+                if total_removed == 0:
+                    st.info("ℹ️ Aucun orphelin trouvé — le cache est déjà synchronisé.")
+                else:
+                    st.success(
+                        f"✅ Supprimés : **{result_sync['removed_cache']}** cache · "
+                        f"**{result_sync['removed_data']}** data · "
+                        f"**{result_sync['removed_es']}** Elasticsearch"
+                    )
+                    if result_sync["es_skipped"]:
+                        st.warning("⚠️ Elasticsearch non disponible — suppression ES ignorée.")
+                st.rerun()
+
+        # Show preview results
+        preview = st.session_state.get("sync_preview")
+        if preview is not None:
+            n_pdfs = len(preview["existing_pdfs"])
+            n_orphan_cache = len(preview["orphaned_cache"])
+            n_orphan_data  = len(preview["orphaned_data"])
+            n_orphan_es    = len(preview["orphaned_es"])
+            total_orphans  = n_orphan_cache + n_orphan_data + n_orphan_es
+
+            col_a, col_b, col_c, col_d = st.columns(4)
+            col_a.metric("PDFs sur disque", n_pdfs)
+            col_b.metric("Orphelins cache", n_orphan_cache, delta=f"-{n_orphan_cache}" if n_orphan_cache else None, delta_color="inverse")
+            col_c.metric("Orphelins data", n_orphan_data, delta=f"-{n_orphan_data}" if n_orphan_data else None, delta_color="inverse")
+            col_d.metric("Orphelins ES", n_orphan_es if not preview["es_skipped"] else "N/A")
+
+            if total_orphans == 0:
+                st.success("✅ Aucun orphelin — le cache est synchronisé avec les fichiers présents.")
+            else:
+                st.warning(f"⚠️ **{total_orphans}** entrée(s) orpheline(s) détectée(s) :")
+                orphaned_names = list(dict.fromkeys(
+                    preview["orphaned_cache"] + preview["orphaned_data"]
+                ))
+                for fname in orphaned_names:
+                    st.markdown(f"  - `{fname}`")
+
+            if preview["es_skipped"]:
+                st.caption("ℹ️ Elasticsearch non disponible — la synchronisation ES sera ignorée.")
+
+    except Exception as e:
+        st.error(f"❌ Erreur de synchronisation : {e}")
+
+# ── Supprimer un CV (accès permanent) ─────────────────────────────────────────
+st.markdown("<br>", unsafe_allow_html=True)
+st.divider()
+
+with st.expander("🗑️ Supprimer un CV — retirer complètement du système", expanded=False):
+    st.markdown("""
+<div style="background:rgba(255,80,80,0.07);border-left:4px solid #ff5555;
+border-radius:0 10px 10px 0;padding:0.8rem 1.2rem;margin-bottom:1rem">
+  <span style="color:#ff5555;font-weight:700;font-size:0.9rem">⚠️ Suppression complète et irréversible</span><br>
+  <span style="color:rgba(255,255,255,0.6);font-size:0.82rem">
+  Sélectionnez un CV dans le dashboard. La suppression efface <strong>tout</strong> :
+  Elasticsearch · <code>cv_cache.json</code> · <code>cvs_data.json</code> · fichier PDF
+  dans <code>cvs/</code> <em>et</em> <code>cvs_uploads/</code>.
+  </span>
+</div>
+""", unsafe_allow_html=True)
+
+    # Load candidates from Elasticsearch
+    _del_candidates = []
+    try:
+        if hasattr(es, "search"):
+            _resp = es.search(
+                index=INDEX_NAME,
+                size=200,
+                query={"match_all": {}},
+                _source=["nom", "email", "telephone", "filename"],
+                sort=[{"nom.keyword": {"order": "asc"}}],
+            )
+            _del_candidates = [
+                {"id": h["_id"], **h.get("_source", {})}
+                for h in _resp.get("hits", {}).get("hits", [])
+            ]
+    except Exception:
+        pass
+
+    if not _del_candidates:
+        st.warning("⚠️ Aucun CV dans le dashboard Elasticsearch, ou service non disponible.")
+    else:
+        _del_labels = [
+            f"{c.get('nom', '?')}  —  {c.get('email', '—')}  [{c['id'][:10]}...]"
+            for c in _del_candidates
+        ]
+        _del_idx = st.selectbox(
+            "Sélectionner le candidat à supprimer",
+            range(len(_del_labels)),
+            format_func=lambda i: _del_labels[i],
+            key="del_cv_select",
+        )
+        _del_cv = _del_candidates[_del_idx]
+
+        # Info card
+        _dc1, _dc2, _dc3 = st.columns(3)
+        _dc1.metric("Nom", _del_cv.get("nom", "?"))
+        _dc2.metric("Email", _del_cv.get("email", "—"))
+        _dc3.metric("Téléphone", _del_cv.get("telephone", "—"))
+        st.caption(f"ID Elasticsearch : `{_del_cv['id']}`  |  Fichier : `{_del_cv.get('filename', '—')}`")
+
+        st.markdown("**Ce qui sera supprimé :**")
+        _col1, _col2, _col3, _col4 = st.columns(4)
+        _col1.markdown("🗄️ **Elasticsearch**")
+        _col2.markdown("📦 **cv_cache.json**")
+        _col3.markdown("📋 **cvs_data.json**")
+        _col4.markdown("📄 **Fichier PDF**\n`cvs/` et `cvs_uploads/`")
+
+        _confirm_del = st.checkbox(
+            "✅ Je confirme la suppression complète et irréversible",
+            key="confirm_del_cv",
+        )
+        if st.button(
+            "🗑️ Supprimer définitivement",
+            disabled=not _confirm_del,
+            type="primary" if _confirm_del else "secondary",
+            key="btn_del_cv_permanent",
+        ):
+            with st.spinner("Suppression en cours..."):
+                try:
+                    _del_source = {
+                        "nom":       _del_cv.get("nom", ""),
+                        "email":     _del_cv.get("email", ""),
+                        "telephone": _del_cv.get("telephone", ""),
+                        "filename":  _del_cv.get("filename", ""),
+                    }
+                    _report = remove_cv(es, cache, _del_cv["id"], _del_source)
+                    st.session_state.pop("sync_preview", None)
+
+                    if _report.get("success"):
+                        _parts = []
+                        if _report.get("elasticsearch"):
+                            _parts.append(f"Elasticsearch ({_report.get('elasticsearch_count', 1)} doc)")
+                        if _report.get("cache"):
+                            _parts.append(f"cache ({_report.get('cache_count', 1)} entrée)")
+                        if _report.get("output"):
+                            _parts.append("cvs_data.json + Excel")
+                        if _report.get("pdf"):
+                            _parts.append("fichier PDF")
+                        st.success(f"✅ Supprimé : **{' · '.join(_parts)}**")
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error("❌ Aucune donnée supprimée. Vérifiez qu'Elasticsearch est démarré.")
+                except Exception as _e:
+                    st.error(f"❌ Erreur lors de la suppression : {_e}")

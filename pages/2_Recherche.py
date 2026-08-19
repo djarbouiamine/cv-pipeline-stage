@@ -454,7 +454,7 @@ def afficher_cv(doc: Dict, rang: int):
     col_btn, _ = st.columns([1, 8])
     with col_btn:
         label = "▼ Détails" if not st.session_state[key] else "▲ Fermer"
-        if st.button(label, key=f"btn_{key}", use_container_width=False):
+        if st.button(label, key=f"btn_{key}", width='content'):
             st.session_state[key] = not st.session_state[key]
 
     if not st.session_state[key]:
