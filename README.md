@@ -192,25 +192,6 @@ python setup.py
 
 ---
 
-## 🗑️ Supprimer un CV complètement
-
-Depuis la page **"Ajouter CV"**, faites défiler jusqu'en bas :
-- Section **"🗑️ Supprimer un CV — retirer complètement du système"**
-- Choisissez le candidat dans la liste (chargée depuis Elasticsearch)
-- Cochez la case de confirmation
-- Cliquez **"🗑️ Supprimer définitivement"**
-
-Un seul clic supprime **partout** :
-
-| Où | Ce qui est supprimé |
-|---|---|
-| 🗄️ **Elasticsearch** | Document du dashboard |
-| 📦 **cv_cache.json** | Entrée de cache LLM |
-| 📋 **cvs_data.json** | Ligne + Excel mis à jour |
-| 📄 **Fichier PDF** | Effacé de `cvs/` **et** `cvs_uploads/` |
-
----
-
 ## 🗂️ Commandes utiles
 
 ```bash
