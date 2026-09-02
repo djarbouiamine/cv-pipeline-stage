@@ -4,7 +4,7 @@ plotly
 pandas
 
 # --- Elasticsearch ---
-elasticsearch
+elasticsearch>=8.12.0,<9.0.0
 
 # --- Lecture de PDF / OCR ---
 PyMuPDF          # import fitz
