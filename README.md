@@ -7,19 +7,14 @@
 
 ---
 
-## ✅ Prérequis — Installez ceci avant tout
-
 | Outil | Lien de téléchargement | Utilité |
 |---|---|---|
-| **Python 3.10+** | https://python.org/downloads | Runtime |
-| **Docker Desktop** | https://docker.com/products/docker-desktop | Elasticsearch + Kibana |
-| **Tesseract OCR** | https://github.com/UB-Mannheim/tesseract/wiki | Lire les CVs scannés |
-| **Poppler** | https://github.com/oschwartz10612/poppler-windows/releases | Conversion PDF en image |
-| **Clé API LLM** | https://console.groq.com *(gratuit)* | Extraction intelligente |
-
-> 💡 **Groq est recommandé** : gratuit, rapide (< 2 s par CV), aucune carte bancaire requise.
-
----
+| Python 3.10+ | https://python.org/downloads | Runtime |
+| Docker Desktop | https://docker.com/products/docker-desktop | Elasticsearch + Kibana |
+| Tesseract OCR | https://github.com/UB-Mannheim/tesseract/wiki | Lire les CVs scannés |
+| Poppler | https://github.com/oschwartz10612/poppler-windows/releases | Conversion PDF en image |
+| libgl1 (Linux/WSL uniquement) | `sudo apt install libgl1` | Requis par OpenCV |
+| Clé API LLM | https://console.groq.com (gratuit) | Extraction intelligente |
 
 ## 🚀 Démarrage en 5 étapes
 
